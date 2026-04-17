@@ -34,7 +34,7 @@ PRs welcome! This is open source — if you're a Tesla owner or developer who ha
 
 ## License
 
-MIT
+[Elastic License 2.0 (ELv2)](LICENSE) — Source visible, contributions welcome, no commercial use without permission.
 
 ---
 
