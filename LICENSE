@@ -1,21 +1,42 @@
-MIT License
+# Tesla Destination Club License
 
-Copyright (c) 2026 Samuel
+Copyright (c) 2025 Samuel Ong. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## Source Availability
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The source code of this project is made publicly available so that users can
+verify how their data is handled. Transparency is a core value of this project.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## Base License
+
+This software is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0),
+with the Commons Clause restriction below.
+
+The full text of the AGPL-3.0 can be found at:
+https://www.gnu.org/licenses/agpl-3.0.html
+
+## Commons Clause Restriction
+
+Without limiting the rights granted under the AGPL-3.0, the following additional
+restriction applies:
+
+The right to "Sell" the Software is reserved exclusively for the copyright holder.
+"Sell" means offering the Software or any substantial portion of it, hosted or managed,
+to third parties in exchange for a fee or as part of a commercial product or service.
+
+You may not:
+- Host or deploy this software as a paid service
+- Resell, sublicense, or commercialise this software or any derivative of it
+- Use this software as part of a product or service for which you charge fees
+
+You may:
+- Run this software locally for personal, non-commercial use
+- Inspect and audit the source code for security and privacy verification
+- Contribute improvements back to the project
+- Fork the project for non-commercial, personal use
+
+## In Plain English
+
+This project is open for transparency, not for others to profit from.
+You're welcome to look, audit, and contribute — but the right to commercialise
+this software belongs solely to the original author.
