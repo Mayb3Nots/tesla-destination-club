@@ -21,5 +21,8 @@
         "supportEmail": "support@tesladc.com"
       }
     }
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }
