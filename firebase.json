@@ -1,0 +1,25 @@
+{
+  "hosting": {
+    "public": ".svelte-kit/output/client",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Tesla Destination Club",
+        "supportEmail": "support@tesladc.com"
+      }
+    }
+  }
+}
