@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "tesla-destination-club"
+  },
   "targets": {},
   "etags": {}
 }
