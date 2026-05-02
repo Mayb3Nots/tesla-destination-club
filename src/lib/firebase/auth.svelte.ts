@@ -6,7 +6,8 @@ import {
 	createUserWithEmailAndPassword,
 	signInWithPopup,
 	GoogleAuthProvider,
-	signOut as firebaseSignOut
+	signOut as firebaseSignOut,
+	sendPasswordResetEmail
 } from 'firebase/auth';
 
 let currentUser = $state<User | null>(null);
@@ -88,6 +89,23 @@ function clearError() {
 	error = null;
 }
 
+async function sendPasswordReset(emailAddress: string) {
+	error = null;
+	try {
+		await sendPasswordResetEmail(auth, emailAddress);
+	} catch (err) {
+		const code = (err as { code?: string })?.code;
+		if (code === 'auth/user-not-found') {
+			error = 'No account found with this email';
+		} else if (code === 'auth/invalid-email') {
+			error = 'Please enter a valid email address';
+		} else {
+			error = 'Failed to send reset email. Please try again';
+		}
+		throw err;
+	}
+}
+
 export function getAuthState() {
 	return {
 		get currentUser() {
@@ -103,6 +121,7 @@ export function getAuthState() {
 		signUpWithEmail,
 		signInWithGoogle,
 		signOut,
-		clearError
+		clearError,
+		sendPasswordReset
 	};
 }

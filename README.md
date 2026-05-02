@@ -33,14 +33,14 @@ and remember that the goal is a better experience for the whole community, not j
 
 - **Slot booking** — reserve a time at a destination charger so everyone gets a fair turn
 - **Live queue** — see who's currently charging, how long they have left, and your position in line
-- **Community reports** — flag when a charger is occupied by a non-app user so the queue stays accurate
-- **WhatsApp sharing** — share your booking details to your community group in one tap,
+- **Sharing** — after booking a slot, share your booking details to any channel you like,
   so non-app users are always in the loop
 
 ## Coming Soon
 
 - **Smart notifications** — get alerted when your slot is approaching or when one opens up early
 - **No-show auto-release** — miss your check-in window and your slot passes to the next person
+- **Community reports** — flag when a charger is occupied by a non-app user so the queue stays accurate
 - **Overstay reports** — flag hoggers with photo and timestamp evidence
 - **Live wait estimates** — dynamic ETA based on queue depth and average session length
 - **Auto-check-in via location** — your session starts automatically when you pull up to the charger

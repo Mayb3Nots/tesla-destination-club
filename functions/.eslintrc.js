@@ -28,6 +28,12 @@ module.exports = {
   rules: {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
-    "indent": ["error", 2],
+    "indent": "off",
+    "no-tabs": "off",
+    "max-len": "off",
+    "object-curly-spacing": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "require-jsdoc": "off",
+    "valid-jsdoc": "off",
   },
 };

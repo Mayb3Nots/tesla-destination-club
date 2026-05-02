@@ -6,6 +6,8 @@
 </script>
 
 <svelte:head>
+	<!-- Inline script runs before hydration to prevent theme flash -->
+	{@html `<script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.classList.add(t)}else if(window.matchMedia('(prefers-color-scheme: light)').matches){/* light is default (no .dark class) */}else{document.documentElement.classList.add('dark')}}catch(e){}})()</script>`}
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />

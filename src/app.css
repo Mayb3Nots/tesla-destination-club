@@ -1,9 +1,10 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
 	--font-display: 'Sora', sans-serif;
 	--font-body: 'DM Sans', sans-serif;
-
 	--color-tesla-red: #e82127;
 	--color-tesla-red-dark: #c41c21;
 	--color-tesla-red-light: #ff4d4f;
@@ -24,6 +25,23 @@
 	--color-accent-green: #22c55e;
 
 	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root:not(.dark) {
+	color-scheme: light;
+	--color-surface: #ffffff;
+	--color-surface-elevated: #f9fafb;
+	--color-surface-overlay: #f3f4f6;
+	--color-surface-muted: #e5e7eb;
+	--color-border: #e5e7eb;
+	--color-border-subtle: #f3f4f6;
+	--color-text-primary: #111827;
+	--color-text-secondary: #6b7280;
+	--color-text-muted: #9ca3af;
+}
+
+:root.dark {
+	color-scheme: dark;
 }
 
 @layer base {
