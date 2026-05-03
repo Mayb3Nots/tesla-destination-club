@@ -1,20 +1,134 @@
 import { initializeApp } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
+import { CloudTasksClient } from "@google-cloud/tasks";
 import * as logger from "firebase-functions/logger";
-import { SEED_CHARGERS } from "./seed";
+import { SEED_CHARGERS } from "./seed.js";
 
 initializeApp();
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({ maxInstances: 10, region: "asia-southeast1" });
 
 const MAX_BOOKING_DURATION_MINUTES = 180;
 const MAX_BOOKING_DAYS_AHEAD = 7;
+const REGION = "asia-southeast1";
 
 /** Lazy Firestore instance. */
 function getDb() {
   return getFirestore();
 }
+
+// ── Cloud Tasks Setup ───────────────────────────────────────────────────────
+const tasksClient = new CloudTasksClient();
+
+/**
+ * Schedules a Cloud Task to process a booking at its end time.
+ * The task calls the `processExpiredBooking` HTTP function.
+ */
+async function scheduleBookingExpiry(chargerId: string, bookingId: string, endTime: string) {
+  const projectId = process.env.FIREBASE_CONFIG ?
+    JSON.parse(process.env.FIREBASE_CONFIG).projectId :
+    process.env.GCLOUD_PROJECT || "tesla-destination-club";
+
+  const queue = process.env.BOOKING_EXPIRY_QUEUE || "booking-expiry";
+  const queuePath = tasksClient.queuePath(projectId, REGION, queue);
+
+  // Calculate delay from now until endTime
+  const endMs = new Date(endTime).getTime();
+  const nowMs = Date.now();
+  const delayMs = Math.max(endMs - nowMs, 0); // Clamp to 0 if already past
+
+  const payload = {
+    chargerId,
+    bookingId,
+  };
+
+  const taskName = `booking-expire-${chargerId}-${bookingId}`;
+
+  const task = {
+    name: tasksClient.taskPath(projectId, REGION, queue, taskName),
+    httpRequest: {
+      httpMethod: "POST" as const,
+      url: `https://${REGION}-${projectId}.cloudfunctions.net/processExpiredBooking`,
+      headers: { "Content-Type": "application/json" },
+      body: Buffer.from(JSON.stringify(payload)).toString("base64"),
+      oidcToken: {
+        serviceAccountEmail: `${projectId}@appspot.gserviceaccount.com`,
+      },
+    },
+    scheduleTime: {
+      seconds: Math.floor(nowMs / 1000) + Math.floor(delayMs / 1000),
+    },
+  };
+
+  await tasksClient.createTask({ parent: queuePath, task });
+  logger.info(`Scheduled expiry task for booking ${bookingId} at ${endTime} (delay: ${Math.round(delayMs / 1000)}s)`);
+}
+
+// ── Process Expired Booking (called by Cloud Task) ─────────────────────────
+
+export const processExpiredBooking = onRequest(
+  { region: REGION, invoker: "private" },
+  async (req, res) => {
+    // Verify this is called by Cloud Tasks (not a random HTTP request)
+    // The "private" invoker setting ensures only authenticated Google Cloud
+    // services (like Cloud Tasks) can call this function.
+    const { chargerId, bookingId } = req.body;
+
+    if (!chargerId || !bookingId) {
+      logger.error("Missing chargerId or bookingId in request body");
+      res.status(400).send("Missing chargerId or bookingId");
+      return;
+    }
+
+    const bookingRef = getDb()
+      .collection("chargers")
+      .doc(chargerId)
+      .collection("bookings")
+      .doc(bookingId);
+
+    const bookingDoc = await bookingRef.get();
+    if (!bookingDoc.exists) {
+      logger.warn(`Booking ${bookingId} not found, skipping.`);
+      res.status(200).send("Booking not found");
+      return;
+    }
+
+    const bookingData = bookingDoc.data()!;
+
+    // Only process if still pending or active (idempotency check)
+    if (bookingData.status !== "pending" && bookingData.status !== "active") {
+      logger.info(`Booking ${bookingId} already ${bookingData.status}, skipping.`);
+      res.status(200).send(`Already ${bookingData.status}`);
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const updates: Record<string, string> = {
+      updatedAt: now,
+    };
+
+    if (bookingData.status === "active") {
+      // User checked in but never checked out — auto complete
+      updates.status = "completed";
+      if (!bookingData.checkedOutAt) {
+        updates.checkedOutAt = now;
+      }
+    } else {
+      // User never checked in — mark as no_show
+      updates.status = "no_show";
+    }
+
+    await bookingRef.update(updates);
+    logger.info(
+      `Processed expired booking ${bookingId} (was ${bookingData.status} → ${updates.status})`
+    );
+
+    res.status(200).send({ success: true, status: updates.status });
+  }
+);
 
 export const seedChargers = onCall(async () => {
   const snapshot = await getDb().collection("chargers").limit(1).get();
@@ -167,6 +281,9 @@ export const createBooking = onCall(async (request) => {
   await bookingRef.set(booking);
   logger.info(`Booking created: ${bookingRef.id} for user ${userId}`);
 
+  // Schedule a Cloud Task to auto-complete this booking at its end time
+  await scheduleBookingExpiry(chargerId, bookingRef.id, end.toISOString());
+
   return { success: true, bookingId: bookingRef.id, ...booking };
 });
 
@@ -223,3 +340,311 @@ export const cancelBooking = onCall(async (request) => {
   logger.info(`Booking cancelled: ${bookingId} by user ${userId}`);
   return { success: true };
 });
+
+// ── Check-in ────────────────────────────────────────────────────────────────
+const CHECK_IN_EARLY_MINUTES = 15;
+
+export const checkInBooking = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in to check in.");
+  }
+
+  const { chargerId, bookingId } = request.data;
+  const userId = auth.uid;
+
+  if (!chargerId || !bookingId) {
+    throw new HttpsError("invalid-argument", "Missing required fields: chargerId, bookingId.");
+  }
+
+  const bookingRef = getDb()
+    .collection("chargers")
+    .doc(chargerId)
+    .collection("bookings")
+    .doc(bookingId);
+
+  const bookingDoc = await bookingRef.get();
+  if (!bookingDoc.exists) {
+    throw new HttpsError("not-found", "Booking not found.");
+  }
+
+  const bookingData = bookingDoc.data()!;
+  if (bookingData.userId !== userId) {
+    throw new HttpsError("permission-denied", "You can only check in to your own bookings.");
+  }
+
+  if (bookingData.status !== "pending") {
+    throw new HttpsError("failed-precondition", "Only pending bookings can be checked in.");
+  }
+
+  const now = new Date();
+  const start = new Date(bookingData.startTime);
+  const end = new Date(bookingData.endTime);
+  const earliestCheckIn = new Date(start.getTime() - CHECK_IN_EARLY_MINUTES * 60 * 1000);
+
+  if (now < earliestCheckIn) {
+    throw new HttpsError(
+      "failed-precondition",
+      `You can check in up to ${CHECK_IN_EARLY_MINUTES} minutes before your slot starts.`
+    );
+  }
+
+  if (now > end) {
+    throw new HttpsError("failed-precondition", "Your booking time has already passed.");
+  }
+
+  await bookingRef.update({
+    status: "active",
+    checkedInAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  logger.info(`Booking checked in: ${bookingId} by user ${userId}`);
+  return { success: true };
+});
+
+// ── Check-out ───────────────────────────────────────────────────────────────
+
+export const checkOutBooking = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in to check out.");
+  }
+
+  const { chargerId, bookingId } = request.data;
+  const userId = auth.uid;
+
+  if (!chargerId || !bookingId) {
+    throw new HttpsError("invalid-argument", "Missing required fields: chargerId, bookingId.");
+  }
+
+  const bookingRef = getDb()
+    .collection("chargers")
+    .doc(chargerId)
+    .collection("bookings")
+    .doc(bookingId);
+
+  const bookingDoc = await bookingRef.get();
+  if (!bookingDoc.exists) {
+    throw new HttpsError("not-found", "Booking not found.");
+  }
+
+  const bookingData = bookingDoc.data()!;
+  if (bookingData.userId !== userId) {
+    throw new HttpsError("permission-denied", "You can only check out of your own bookings.");
+  }
+
+  if (bookingData.status !== "active") {
+    throw new HttpsError("failed-precondition", "Only active bookings can be checked out.");
+  }
+
+  const now = new Date();
+
+  await bookingRef.update({
+    status: "completed",
+    checkedOutAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  logger.info(`Booking checked out: ${bookingId} by user ${userId}`);
+  return { success: true };
+});
+
+// ── Auto-complete expired bookings (backup sweep) ─────────────────────────
+// Runs every 30 minutes as a safety net in case a Cloud Task was missed or
+// the function was redeployed with pending tasks in the queue.
+export const autoCompleteBookings = onSchedule(
+  {
+    schedule: "every 30 minutes",
+    timeZone: "Asia/Kuala_Lumpur",
+    region: "asia-southeast1",
+  },
+  async () => {
+    const now = new Date().toISOString();
+    const db = getDb();
+
+    const chargersSnapshot = await db.collection("chargers").get();
+    let totalUpdated = 0;
+
+    for (const chargerDoc of chargersSnapshot.docs) {
+      // Only catch bookings that expired more than 10 minutes ago
+      // (give Cloud Tasks a chance to process first)
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+      const expiredSnapshot = await db
+        .collection("chargers")
+        .doc(chargerDoc.id)
+        .collection("bookings")
+        .where("status", "in", ["pending", "active"])
+        .where("endTime", "<=", tenMinutesAgo)
+        .get();
+
+      for (const bookingDoc of expiredSnapshot.docs) {
+        const bookingData = bookingDoc.data();
+        const updates: Record<string, string> = {
+          updatedAt: now,
+        };
+
+        if (bookingData.status === "active") {
+          updates.status = "completed";
+          if (!bookingData.checkedOutAt) {
+            updates.checkedOutAt = now;
+          }
+        } else {
+          updates.status = "no_show";
+        }
+
+        await bookingDoc.ref.update(updates);
+        totalUpdated++;
+        logger.warn(
+          `Backup sweep: processed booking ${bookingDoc.id} ` +
+          `(was ${bookingData.status}, endTime ${bookingData.endTime})`
+        );
+      }
+    }
+
+    if (totalUpdated > 0) {
+      logger.warn(`Backup sweep: updated ${totalUpdated} missed bookings.`);
+    }
+  }
+);
+
+// ── FCM Token Management ────────────────────────────────────────────────────
+
+export const storeFcmToken = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const { token } = request.data;
+  const uid = auth.uid;
+
+  if (token === null || token === undefined) {
+    // Remove the token (user signed out or revoked permission)
+    await getDb().collection("users").doc(uid).set(
+      { fcmToken: null, updatedAt: new Date().toISOString() },
+      { merge: true }
+    );
+    return { success: true };
+  }
+
+  if (typeof token !== "string" || token.length === 0) {
+    throw new HttpsError("invalid-argument", "Token must be a non-empty string or null.");
+  }
+
+  await getDb().collection("users").doc(uid).set(
+    { fcmToken: token, updatedAt: new Date().toISOString() },
+    { merge: true }
+  );
+
+  logger.info(`FCM token stored for user ${uid}`);
+  return { success: true };
+});
+
+// ── Check-in Reminder (N-01) ────────────────────────────────────────────────
+// Sends a push notification to users whose booking starts in ~15 minutes.
+// Runs every 5 minutes and targets pending bookings in the 10–20 min window.
+
+export const sendCheckInReminders = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    timeZone: "Asia/Kuala_Lumpur",
+    region: "asia-southeast1",
+  },
+  async () => {
+    const now = new Date();
+    const fromTime = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+    const toTime = new Date(now.getTime() + 20 * 60 * 1000).toISOString();
+
+    const db = getDb();
+
+    // Query all pending bookings across all chargers that start in the 10–20 min window
+    const snapshot = await db
+      .collectionGroup("bookings")
+      .where("status", "==", "pending")
+      .where("startTime", ">=", fromTime)
+      .where("startTime", "<=", toTime)
+      .get();
+
+    if (snapshot.empty) {
+      return;
+    }
+
+    let sentCount = 0;
+
+    for (const bookingDoc of snapshot.docs) {
+      const booking = bookingDoc.data();
+
+      // Skip if reminder already sent
+      if (booking.checkInReminderSentAt) {
+        continue;
+      }
+
+      // Get the user's FCM token
+      const userDoc = await db.collection("users").doc(booking.userId).get();
+      const fcmToken = userDoc.data()?.fcmToken;
+
+      if (!fcmToken) {
+        logger.info(`No FCM token for user ${booking.userId}, skipping reminder.`);
+        continue;
+      }
+
+      const chargerName = booking.chargerName || "your charger";
+      const startTime = new Date(booking.startTime);
+      const timeStr = startTime.toLocaleTimeString("en-MY", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur",
+      });
+
+      const chargerId = booking.chargerId;
+
+      try {
+        await getMessaging().send({
+          token: fcmToken,
+          notification: {
+            title: "⏰ Check-in Reminder",
+            body: `Your slot at ${chargerName} starts at ${timeStr}. Don't forget to check in!`,
+          },
+          data: {
+            url: `/chargers/${chargerId}/book`,
+          },
+          webpush: {
+            fcmOptions: {
+              link: `https://tesla-destination-club.web.app/chargers/${chargerId}/book`,
+            },
+          },
+        });
+
+        // Mark reminder as sent to prevent duplicates
+        await bookingDoc.ref.update({
+          checkInReminderSentAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        });
+
+        sentCount++;
+        logger.info(`Check-in reminder sent to user ${booking.userId} for booking ${bookingDoc.id}`);
+      } catch (err) {
+        logger.error(`Failed to send check-in reminder to user ${booking.userId}:`, err);
+
+        // If the token is invalid, remove it
+        if (
+          err instanceof Error &&
+          (err.message.includes("not a valid FCM registration token") ||
+            err.message.includes("requested entity was not found"))
+        ) {
+          await db.collection("users").doc(booking.userId).set(
+            { fcmToken: null, updatedAt: now.toISOString() },
+            { merge: true }
+          );
+          logger.info(`Removed invalid FCM token for user ${booking.userId}`);
+        }
+      }
+    }
+
+    if (sentCount > 0) {
+      logger.info(`Check-in reminders: sent ${sentCount} notifications.`);
+    }
+  }
+);

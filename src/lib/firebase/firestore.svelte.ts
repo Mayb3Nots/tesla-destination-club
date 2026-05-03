@@ -267,6 +267,18 @@ export async function cancelBooking(chargerId: string, bookingId: string) {
 	return result.data as { success: boolean };
 }
 
+export async function checkInBooking(chargerId: string, bookingId: string) {
+	const checkInFn = httpsCallable(functions, 'checkInBooking');
+	const result = await checkInFn({ chargerId, bookingId });
+	return result.data as { success: boolean };
+}
+
+export async function checkOutBooking(chargerId: string, bookingId: string) {
+	const checkOutFn = httpsCallable(functions, 'checkOutBooking');
+	const result = await checkOutFn({ chargerId, bookingId });
+	return result.data as { success: boolean };
+}
+
 export async function seedChargers() {
 	const seedFn = httpsCallable(functions, 'seedChargers');
 	const result = await seedFn();

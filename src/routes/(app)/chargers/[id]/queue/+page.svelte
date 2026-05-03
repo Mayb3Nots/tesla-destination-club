@@ -6,6 +6,7 @@
 	import QueueItem from '$lib/components/QueueItem.svelte';
 	import type { Charger } from '$lib/models/charger';
 	import { BookingStatus } from '$lib/models/booking';
+	import { getNextAvailableTime, formatWaitTime, formatTime12 } from '$lib/calendar-helpers';
 
 	const chargerId = $derived($page.params.id);
 	const chargersService = useChargers();
@@ -70,6 +71,12 @@
 
 	let totalActive = $derived(activeBookings.length);
 	let freePorts = $derived(charger ? charger.totalPorts - totalActive : 0);
+
+	let nextSlot = $derived(
+		charger
+			? getNextAvailableTime(bookings, charger.totalPorts, now)
+			: null
+	);
 </script>
 
 <svelte:head>
@@ -120,6 +127,75 @@
 				{freePorts > 0 ? `${freePorts} of ${charger.totalPorts} free` : 'All ports busy'}
 			</span>
 		</div>
+
+		<!-- Estimated Wait Time Card -->
+		{#if nextSlot}
+			<div class="mb-6 rounded-2xl border border-border bg-surface-elevated p-5">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-xl {nextSlot.isAvailableNow
+							? 'bg-accent-green/10'
+							: 'bg-accent-blue/10'}">
+							<svg
+								width="20"
+								height="20"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke={nextSlot.isAvailableNow
+									? 'var(--color-accent-green)'
+									: 'var(--color-accent-blue)'}
+								stroke-width="1.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<circle cx="12" cy="12" r="10" />
+								<polyline points="12 6 12 12 16 14" />
+							</svg>
+						</div>
+						<div>
+							<p class="text-xs font-medium uppercase tracking-wider text-text-muted">
+								Next Available Slot
+							</p>
+							<p class="text-lg font-semibold {nextSlot.isAvailableNow
+								? 'text-accent-green'
+								: 'text-text-primary'}">
+								{#if nextSlot.isAvailableNow}
+									Available now
+								{:else}
+									{formatTime12(nextSlot.time)}
+								{/if}
+							</p>
+						</div>
+					</div>
+					<div class="text-right">
+						<p class="text-sm font-semibold {nextSlot.isAvailableNow
+							? 'text-accent-green'
+							: 'text-accent-blue'}">
+							{formatWaitTime(nextSlot.waitMinutes)}
+						</p>
+						{#if !nextSlot.isAvailableNow}
+							<p class="text-xs text-text-muted">
+								{nextSlot.waitMinutes < 60
+									? `${nextSlot.waitMinutes} min from now`
+									: `${Math.floor(nextSlot.waitMinutes / 60)}h ${nextSlot.waitMinutes % 60}m from now`}
+							</p>
+						{/if}
+					</div>
+				</div>
+				<a
+					href="/chargers/{chargerId}/book"
+					class="mt-3 block w-full rounded-xl {nextSlot.isAvailableNow
+						? 'bg-accent-green/10 text-accent-green hover:bg-accent-green/20'
+						: 'bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20'} px-4 py-2.5 text-center text-sm font-semibold transition-colors"
+				>
+					{#if nextSlot.isAvailableNow}
+						Book a slot now →
+					{:else}
+						Book this slot →
+					{/if}
+				</a>
+			</div>
+		{/if}
 
 		<div class="rounded-2xl border border-border bg-surface-elevated p-6 sm:p-8">
 			{#if bookingsService?.loading}

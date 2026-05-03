@@ -142,6 +142,95 @@ export function computePortAssignments(
 	return assignments;
 }
 
+export interface NextAvailableSlot {
+	time: Date;
+	waitMinutes: number;
+	isAvailableNow: boolean;
+}
+
+/**
+ * Finds the next time a charging port becomes available.
+ * Looks at active + upcoming bookings and finds the earliest gap.
+ */
+export function getNextAvailableTime(
+	bookings: { startTime: string; endTime: string; status: string }[],
+	totalPorts: number,
+	refDate: Date = new Date()
+): NextAvailableSlot | null {
+	const now = refDate.getTime();
+
+	// Filter to only relevant bookings (not cancelled/no_show, and not already ended)
+	const relevant = bookings.filter((b) => {
+		if (b.status === 'cancelled' || b.status === 'no_show') return false;
+		return new Date(b.endTime).getTime() > now;
+	});
+
+	if (relevant.length === 0) {
+		return { time: new Date(now), waitMinutes: 0, isAvailableNow: true };
+	}
+
+	// Check if a port is free right now
+	const concurrentNow = relevant.filter((b) => {
+		const start = new Date(b.startTime).getTime();
+		const end = new Date(b.endTime).getTime();
+		return start <= now && end > now;
+	}).length;
+
+	if (concurrentNow < totalPorts) {
+		return { time: new Date(now), waitMinutes: 0, isAvailableNow: true };
+	}
+
+	// Collect all unique end times of active bookings (sorted ascending)
+	const endTimes = relevant
+		.map((b) => new Date(b.endTime).getTime())
+		.filter((t) => t > now)
+		.sort((a, b) => a - b);
+
+	// Deduplicate (within 1 minute tolerance)
+	const uniqueEndTimes: number[] = [];
+	for (const t of endTimes) {
+		if (uniqueEndTimes.length === 0 || t - uniqueEndTimes[uniqueEndTimes.length - 1] > 60000) {
+			uniqueEndTimes.push(t);
+		}
+	}
+
+	// For each end time, check how many bookings are still running at that moment
+	for (const endTime of uniqueEndTimes) {
+		const stillRunning = relevant.filter((b) => {
+			const start = new Date(b.startTime).getTime();
+			const end = new Date(b.endTime).getTime();
+			return start <= endTime && end > endTime;
+		}).length;
+
+		if (stillRunning < totalPorts) {
+			const waitMinutes = Math.max(0, Math.round((endTime - now) / (60 * 1000)));
+			return {
+				time: new Date(endTime),
+				waitMinutes,
+				isAvailableNow: false
+			};
+		}
+	}
+
+	// All ports are booked for the foreseeable future — return the last end time
+	const lastEnd = uniqueEndTimes[uniqueEndTimes.length - 1];
+	const waitMinutes = Math.max(0, Math.round((lastEnd - now) / (60 * 1000)));
+	return {
+		time: new Date(lastEnd),
+		waitMinutes,
+		isAvailableNow: false
+	};
+}
+
+export function formatWaitTime(minutes: number): string {
+	if (minutes <= 0) return 'Available now';
+	if (minutes < 60) return `~${minutes} min wait`;
+	const hours = Math.floor(minutes / 60);
+	const mins = minutes % 60;
+	if (mins === 0) return `~${hours}h wait`;
+	return `~${hours}h ${mins}m wait`;
+}
+
 export function checkSlotAvailability(
 	startTime: Date,
 	endTime: Date,

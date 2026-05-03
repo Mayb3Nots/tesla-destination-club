@@ -17,6 +17,8 @@ export interface Booking {
 	startTime: string;
 	endTime: string;
 	estimatedMinutes: number;
+	checkedInAt?: string;
+	checkedOutAt?: string;
 	createdAt: string;
 	updatedAt: string;
 }

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { useChargers, useBookingsRange, createBooking } from '$lib/firebase/firestore.svelte';
+	import { useChargers, useBookingsRange, createBooking, checkInBooking, checkOutBooking, cancelBooking } from '$lib/firebase/firestore.svelte';
+	import { getAuthState } from '$lib/firebase/auth.svelte';
 	import CalendarGrid from '$lib/components/CalendarGrid.svelte';
 	import DateTimeInput from '$lib/components/DateTimeInput.svelte';
 	import CoreButton from '$lib/components/CoreButton.svelte';
@@ -12,11 +13,13 @@
 
 	const chargerId = $derived($page.params.id);
 	const chargersService = useChargers();
+	const auth = getAuthState();
 	let charger = $state<Charger | null>(null);
 
 	let isSubmitting = $state(false);
 	let submitError = $state<string | null>(null);
 	let bookingSuccess = $state<{ bookingId: string } & Booking | null>(null);
+	let checkInActionLoading = $state<string | null>(null);
 
 	let showManualInput = $state(false);
 	let calendarSelection = $state<{ startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null>(null);
@@ -87,7 +90,7 @@
 			day: 'numeric',
 			month: 'short'
 		});
-		return `Charging slot booked!\n${charger.name}\n${date}\n${formatTime12(new Date(bookingSuccess.startTime))} - ${formatTime12(new Date(bookingSuccess.endTime))}\n${bookingSuccess.estimatedMinutes} min`;
+		return `📅 *Tesla Destination Club*\n\n*${charger.name}*\n${date}\n${formatTime12(new Date(bookingSuccess.startTime))} – ${formatTime12(new Date(bookingSuccess.endTime))}\n${bookingSuccess.estimatedMinutes} min`;
 	}
 
 	async function handleConfirmBooking(startTime: Date, endTime: Date) {
@@ -106,6 +109,42 @@
 			submitError = err?.message || 'Failed to create booking. Please try again.';
 		} finally {
 			isSubmitting = false;
+		}
+	}
+
+	async function handleCheckIn(booking: any) {
+		if (checkInActionLoading) return;
+		checkInActionLoading = booking.id;
+		try {
+			await checkInBooking(chargerId, booking.id);
+		} catch (err: any) {
+			submitError = err?.message || 'Failed to check in. Please try again.';
+		} finally {
+			checkInActionLoading = null;
+		}
+	}
+
+	async function handleCheckOut(booking: any) {
+		if (checkInActionLoading) return;
+		checkInActionLoading = booking.id;
+		try {
+			await checkOutBooking(chargerId, booking.id);
+		} catch (err: any) {
+			submitError = err?.message || 'Failed to check out. Please try again.';
+		} finally {
+			checkInActionLoading = null;
+		}
+	}
+
+	async function handleCancel(booking: any) {
+		if (checkInActionLoading) return;
+		checkInActionLoading = booking.id;
+		try {
+			await cancelBooking(chargerId, booking.id);
+		} catch (err: any) {
+			submitError = err?.message || 'Failed to cancel booking. Please try again.';
+		} finally {
+			checkInActionLoading = null;
 		}
 	}
 </script>
@@ -157,14 +196,14 @@
 						</div>
 					</div>
 				</div>
-				<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-					<ShareButton title="Booking Confirmed" text={buildShareText()} size="sm" class="sm:w-auto w-full">
+				<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center sm:flex-wrap">
+					<ShareButton title="Booking Confirmed" text={buildShareText()} class="w-full sm:w-auto">
 						Share
 					</ShareButton>
-					<CoreButton variant="primary" href="/bookings" size="sm" class="sm:w-auto w-full">
+					<CoreButton variant="primary" href="/bookings" size="sm" class="w-full sm:w-auto">
 						View My Bookings
 					</CoreButton>
-					<CoreButton variant="secondary" href="/chargers/{chargerId}/queue" size="sm" class="sm:w-auto w-full">
+					<CoreButton variant="secondary" href="/chargers/{chargerId}/queue" size="sm" class="w-full sm:w-auto">
 						View Queue
 					</CoreButton>
 				</div>
@@ -287,7 +326,7 @@
 							<CoreButton
 								variant="primary"
 								onclick={confirmManualInput}
-								class="w-full"
+								size="sm" class="w-full"
 							>
 								Confirm
 							</CoreButton>
@@ -303,6 +342,11 @@
 					onconfirm={handleConfirmBooking}
 					bind:selection={calendarSelection}
 					{isSubmitting}
+					currentUserId={auth.currentUser?.uid}
+					oncheckin={handleCheckIn}
+					oncheckout={handleCheckOut}
+					oncancel={handleCancel}
+					{checkInActionLoading}
 				/>
 			</div>
 		{:else}

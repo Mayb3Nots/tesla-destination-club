@@ -5,5 +5,7 @@ export interface Charger {
 	latitude: number;
 	longitude: number;
 	totalPorts: number;
+	bayLocation?: string;
+	bayNames?: string[];
 	createdAt: string;
 }

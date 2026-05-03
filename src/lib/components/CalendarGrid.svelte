@@ -27,9 +27,14 @@
 		selection?: { startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null;
 		onselectionchange?: (selection: { startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null) => void;
 		isSubmitting?: boolean;
+		currentUserId?: string;
+		oncheckin?: (booking: Booking) => void;
+		oncheckout?: (booking: Booking) => void;
+		oncancel?: (booking: Booking) => void;
+		checkInActionLoading?: string | null;
 	};
 
-	let { bookings, totalPorts, onconfirm, selection: externalSelection = $bindable(null), onselectionchange, isSubmitting = false }: Props = $props();
+	let { bookings, totalPorts, onconfirm, selection: externalSelection = $bindable(null), onselectionchange, isSubmitting = false, currentUserId, oncheckin, oncheckout, oncancel, checkInActionLoading }: Props = $props();
 
 	// Internal selection state
 	let selection = $state<{ startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null>(null);
@@ -322,6 +327,11 @@
 								portIndex={portIdx}
 								totalPorts={Math.max(maxPorts(), totalPorts)}
 								{slotHeight}
+								{currentUserId}
+								oncheckin={oncheckin}
+								oncheckout={oncheckout}
+								oncancel={oncancel}
+								{checkInActionLoading}
 							/>
 						{/each}
 
