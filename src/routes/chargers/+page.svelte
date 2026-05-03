@@ -17,9 +17,9 @@
 	import { db } from '$lib/firebase/client';
 
 	const chargersService = useChargers();
-	const bookingsService = useUserBookings();
 	const auth = getAuthState();
 
+	let bookingsService: ReturnType<typeof useUserBookings> | null = $state(null);
 	let actionLoading = $state<string | null>(null);
 	let actionError = $state<string | null>(null);
 	let now = $state(new Date());
@@ -64,14 +64,18 @@
 
 	onMount(async () => {
 		await chargersService.fetch();
-		bookingsService.subscribe();
 
-		if (chargersService.chargers.length === 0) {
-			try {
-				await seedChargers();
-				await chargersService.fetch();
-			} catch {
-				// Seeding may fail due to permissions, that's okay
+		if (auth.currentUser) {
+			bookingsService = useUserBookings();
+			bookingsService.subscribe();
+
+			if (chargersService.chargers.length === 0) {
+				try {
+					await seedChargers();
+					await chargersService.fetch();
+				} catch {
+					// Seeding may fail due to permissions, that's okay
+				}
 			}
 		}
 
@@ -89,6 +93,7 @@
 	}
 
 	function getUserBookingForCharger(chargerId: string): Booking | undefined {
+		if (!bookingsService) return undefined;
 		return bookingsService.bookings.find(
 			(b) =>
 				b.chargerId === chargerId &&
@@ -147,17 +152,63 @@
 
 <svelte:head>
 	<title>Chargers — Tesla Destination Club</title>
+	<meta
+		name="description"
+		content="Browse Tesla destination charger locations in Malaysia. Check availability and book your slot."
+	/>
 </svelte:head>
 
-<div class="mx-auto max-w-6xl px-6 py-10 lg:px-8">
-	<div class="mb-8">
-		<h1 class="font-display text-3xl font-bold tracking-tight text-text-primary">
-			Choose a Charger
-		</h1>
-		<p class="mt-2 text-base text-text-secondary">
-			Select a Tesla destination charger to book your slot
-		</p>
-	</div>
+<div class="min-h-screen bg-surface">
+	<!-- Navigation -->
+	{#if auth.currentUser}
+		<nav class="border-b border-border bg-surface-elevated/80 backdrop-blur-md sticky top-0 z-50">
+			<div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8">
+				<a href="/chargers" class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-tesla-red">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+						</svg>
+					</div>
+					<span class="font-display text-base font-bold tracking-tight text-text-primary">Destination Club</span>
+				</a>
+				<div class="flex items-center gap-2">
+					<a href="/chargers" class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary">
+						Chargers
+					</a>
+					<a href="/bookings" class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary">
+						My Bookings
+					</a>
+				</div>
+			</div>
+		</nav>
+	{:else}
+		<nav class="border-b border-border bg-surface-elevated/80 backdrop-blur-md sticky top-0 z-50">
+			<div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8">
+				<a href="/" class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-tesla-red">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+						</svg>
+					</div>
+					<span class="font-display text-base font-bold tracking-tight text-text-primary">Destination Club</span>
+				</a>
+				<CoreButton variant="ghost" size="sm" href="/login">
+					Sign In
+				</CoreButton>
+			</div>
+		</nav>
+	{/if}
+
+	<!-- Content -->
+	<div class="mx-auto max-w-6xl px-6 py-10 lg:px-8">
+		<div class="mb-8">
+			<h1 class="font-display text-3xl font-bold tracking-tight text-text-primary">
+				{auth.currentUser ? 'Choose a Charger' : 'Charger Locations'}
+			</h1>
+			<p class="mt-2 text-base text-text-secondary">
+				{auth.currentUser ? 'Select a Tesla destination charger to book your slot' : 'Browse Tesla destination chargers and check availability'}
+			</p>
+		</div>
 
 	{#if chargersService.loading}
 		<div class="flex items-center justify-center py-20">
@@ -185,15 +236,17 @@
 				<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
 			</svg>
 			<p class="text-sm text-text-secondary">No chargers available yet</p>
-			<button
-				onclick={async () => {
-					await seedChargers();
-					await chargersService.fetch();
-				}}
-				class="mt-4 text-sm font-semibold text-tesla-red hover:text-tesla-red-light transition-colors"
-			>
-				Seed charger data
-			</button>
+			{#if auth.currentUser}
+				<button
+					onclick={async () => {
+						await seedChargers();
+						await chargersService.fetch();
+					}}
+					class="mt-4 text-sm font-semibold text-tesla-red hover:text-tesla-red-light transition-colors"
+				>
+					Seed charger data
+				</button>
+			{/if}
 		</div>
 	{:else}
 		{#if actionError}
@@ -206,7 +259,7 @@
 			{#each chargersService.chargers as charger (charger.id)}
 				{@const userBooking = getUserBookingForCharger(charger.id)}
 				<a
-					href="/chargers/{charger.id}/book"
+				href={auth.currentUser ? `/chargers/${charger.id}/book` : '/login'}
 					class="group rounded-2xl border border-border bg-surface-elevated p-6 transition-all duration-300 hover:border-text-muted/30 hover:bg-surface-overlay"
 				>
 					<div class="mb-4 flex items-center justify-between">
@@ -323,11 +376,22 @@
 									<span class="text-xs text-text-muted">Checking…</span>
 								{/if}
 							</div>
-							<span class="text-xs text-text-muted">Book a slot →</span>
+							{#if auth.currentUser}
+								<span class="text-xs text-text-muted">Book a slot →</span>
+							{/if}
+						</div>
+					{/if}
+
+					{#if !auth.currentUser}
+						<div class="mt-4 pt-4 border-t border-border-subtle">
+							<span class="text-xs font-medium text-tesla-red">
+								Sign in to book →
+							</span>
 						</div>
 					{/if}
 				</a>
 			{/each}
 		</div>
 	{/if}
+	</div>
 </div>

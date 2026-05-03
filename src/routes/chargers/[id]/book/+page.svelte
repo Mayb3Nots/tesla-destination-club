@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { useChargers, useBookingsRange, createBooking, checkInBooking, checkOutBooking, cancelBooking } from '$lib/firebase/firestore.svelte';
 	import { getAuthState } from '$lib/firebase/auth.svelte';
@@ -79,6 +80,10 @@
 	});
 
 	onMount(async () => {
+		if (!auth.currentUser && !auth.loading) {
+			goto('/login');
+			return;
+		}
 		await chargersService.fetch();
 		charger = chargersService.chargers.find((c) => c.id === chargerId) || null;
 	});

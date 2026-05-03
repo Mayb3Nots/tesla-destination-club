@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { useChargers, useBookings } from '$lib/firebase/firestore.svelte';
+	import { getAuthState } from '$lib/firebase/auth.svelte';
 	import CoreButton from '$lib/components/CoreButton.svelte';
 	import QueueItem from '$lib/components/QueueItem.svelte';
 	import type { Charger } from '$lib/models/charger';
@@ -10,6 +12,7 @@
 
 	const chargerId = $derived($page.params.id);
 	const chargersService = useChargers();
+	const auth = getAuthState();
 	let charger = $state<Charger | null>(null);
 
 	let bookingsService = $state<ReturnType<typeof useBookings> | null>(null);
@@ -23,6 +26,10 @@
 
 	onMount(async () => {
 		if (!chargerId) return;
+		if (!auth.currentUser && !auth.loading) {
+			goto('/login');
+			return;
+		}
 		await chargersService.fetch();
 		charger = chargersService.chargers.find((c) => c.id === chargerId) || null;
 

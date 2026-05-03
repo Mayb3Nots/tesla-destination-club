@@ -25,10 +25,7 @@ export function useChargers() {
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	const auth = getAuth();
-
 	async function fetch() {
-		if (!auth.currentUser) return;
 		loading = true;
 		error = null;
 		try {

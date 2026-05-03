@@ -77,6 +77,14 @@
 			: 0
 	);
 
+	function formatDuration(minutes: number): string {
+		const hrs = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		if (hrs === 0) return `${mins} min`;
+		if (mins === 0) return `${hrs} hr`;
+		return `${hrs} hr ${mins} min`;
+	}
+
 	let isAvailable = $derived(() => {
 		if (!selection) return true;
 		const sel = selection;
@@ -390,7 +398,7 @@
 						<span class="font-semibold text-text-primary">{formatTime12(selection.startTime)}</span>
 						<span class="text-text-muted">—</span>
 						<span class="font-semibold text-text-primary">{formatTime12(selection.endTime)}{selectionOverflow ? ' +1 day' : ''}</span>
-						<span class="text-text-muted">({selectionDuration} min)</span>
+						<span class="text-text-muted">({formatDuration(selectionDuration)})</span>
 					</div>
 					{#if !isAvailable()}
 						<span class="shrink-0 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-semibold text-yellow-400">

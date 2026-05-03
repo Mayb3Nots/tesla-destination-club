@@ -9,6 +9,7 @@
 	let { children } = $props();
 
 	const auth = getAuthState();
+	let profileMenuOpen = $state(false);
 	let foregroundNotification = $state<{ title: string; body: string } | null>(null);
 
 	onMount(() => {
@@ -87,25 +88,105 @@
 					>
 						Chargers
 					</a>
-					<a
-						href="/bookings"
-						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						My Bookings
-					</a>
-					<a
-						href="/vehicles"
-						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						My Vehicles
-					</a>
 					<ThemeToggle />
-					<button
-						onclick={() => auth.signOut()}
-						class="ml-2 rounded-lg px-3 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						Sign Out
-					</button>
+					<div class="relative ml-2">
+						<button
+							onclick={() => (profileMenuOpen = !profileMenuOpen)}
+							class="flex items-center gap-2 rounded-lg border border-border bg-surface-overlay px-3 py-1.5 transition-colors hover:bg-surface-muted"
+						>
+							{#if auth.currentUser?.photoURL}
+								<img
+									src={auth.currentUser.photoURL}
+									alt=""
+									class="h-6 w-6 rounded-full object-cover"
+								/>
+							{:else}
+								<div
+									class="flex h-6 w-6 items-center justify-center rounded-full bg-tesla-red/20 text-xs font-semibold text-tesla-red"
+								>
+									{#if auth.currentUser?.displayName}
+										{auth.currentUser.displayName.charAt(0).toUpperCase()}
+									{:else if auth.currentUser?.email}
+										{auth.currentUser.email.charAt(0).toUpperCase()}
+									{/if}
+								</div>
+							{/if}
+							<span class="max-w-[120px] truncate text-sm text-text-secondary">
+								{auth.currentUser?.displayName || auth.currentUser?.email || 'User'}
+							</span>
+
+						</button>
+						{#if profileMenuOpen}
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div
+								onclick={() => (profileMenuOpen = false)}
+								class="fixed inset-0 z-40"
+								aria-hidden="true"
+								onkeydown={() => {}}
+							></div>
+							<div
+								class="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-2xl shadow-black/40"
+							>
+								<div class="border-b border-border px-4 py-3">
+									<p class="truncate text-sm font-medium text-text-primary">
+										{auth.currentUser?.displayName || 'User'}
+									</p>
+									<p class="truncate text-xs text-text-muted">
+										{auth.currentUser?.email}
+									</p>
+								</div>
+								<div class="p-1">										<a
+											href="/bookings"
+											onclick={() => (profileMenuOpen = false)}
+											class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+										>
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+												<rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+												<line x1="16" y1="2" x2="16" y2="6" />
+												<line x1="8" y1="2" x2="8" y2="6" />
+												<line x1="3" y1="10" x2="21" y2="10" />
+											</svg>
+											My Bookings
+										</a>
+										<a
+											href="/vehicles"
+											onclick={() => (profileMenuOpen = false)}
+											class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+										>
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+												<path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2" />
+												<circle cx="6.5" cy="16.5" r="2.5" />
+												<circle cx="16.5" cy="16.5" r="2.5" />
+											</svg>
+											My Vehicles
+										</a>
+										<div class="my-1 border-t border-border"></div>									<button
+										onclick={() => {
+											profileMenuOpen = false;
+											auth.signOut();
+										}}
+										class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+									>
+										<svg
+											width="16"
+											height="16"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+											<polyline points="16 17 21 12 16 7" />
+											<line x1="21" y1="12" x2="9" y2="12" />
+										</svg>
+										Sign Out
+									</button>
+								</div>
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</nav>

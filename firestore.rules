@@ -2,14 +2,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Chargers — readable by all authenticated users, writable only via cloud function
+    // Chargers — readable by anyone (public page), writable only via cloud function
     match /chargers/{chargerId} {
-      allow read: if request.auth != null;
+      allow read: if true;
 
       // Bookings subcollection
       match /bookings/{bookingId} {
-        // Anyone authenticated can read bookings (needed for queue display)
-        allow read: if request.auth != null;
+        // Anyone can read bookings (needed for public availability display)
+        allow read: if true;
 
         // Create/update denied from client — must use cloud function
         allow create: if false;

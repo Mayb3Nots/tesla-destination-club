@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { Vehicle } from '$lib/models/vehicle';
+	import { getModelsForYear, getColorsForModel, getYearOptions } from '$lib/tesla-data';
 
 	type Props = {
 		vehicle?: Vehicle | null;
 		onSubmit: (data: {
 			plateNumber: string;
-			make: string;
 			model: string;
 			color: string;
 			year: number;
@@ -16,7 +16,6 @@
 	let { vehicle: vehicleProp, onSubmit, onCancel } = $props();
 
 	let plateNumber = $state('');
-	let make = $state('');
 	let model = $state('');
 	let color = $state('');
 	let year = $state(new Date().getFullYear());
@@ -26,21 +25,40 @@
 		const v = vehicleProp;
 		if (v) {
 			plateNumber = v.plateNumber;
-			make = v.make;
 			model = v.model;
 			color = v.color;
 			year = v.year;
 		}
 	});
+
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 
-	const currentYear = new Date().getFullYear();
-	const yearOptions = Array.from({ length: 40 }, (_, i) => currentYear - i);
+	const yearOptions = getYearOptions();
+
+	// Smart cascading: when year changes, reset model if it's no longer valid
+	let availableModels = $derived(getModelsForYear(year));
+
+	$effect(() => {
+		const models = availableModels;
+		if (model && !models.includes(model)) {
+			model = '';
+			color = '';
+		}
+	});
+
+	// Smart cascading: when model changes, reset color if it's no longer valid
+	let availableColors = $derived(getColorsForModel(model));
+
+	$effect(() => {
+		const colors = availableColors;
+		if (color && !colors.some((c) => c.name === color)) {
+			color = '';
+		}
+	});
 
 	let canSubmit = $derived(
 		plateNumber.trim().length > 0 &&
-			make.trim().length > 0 &&
 			model.trim().length > 0 &&
 			color.trim().length > 0 &&
 			year > 0
@@ -56,7 +74,6 @@
 		try {
 			await onSubmit({
 				plateNumber: plateNumber.trim().toUpperCase(),
-				make: make.trim(),
 				model: model.trim(),
 				color: color.trim(),
 				year
@@ -94,48 +111,6 @@
 
 	<div class="grid grid-cols-2 gap-4">
 		<div>
-			<label for="make" class="mb-1.5 block text-sm font-medium text-text-secondary"
-				>Make</label
-			>
-			<input
-				id="make"
-				type="text"
-				bind:value={make}
-				placeholder="e.g. Tesla"
-				required
-				class="w-full rounded-lg border border-border bg-surface-elevated px-4 py-3 text-base text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue transition-colors"
-			/>
-		</div>
-		<div>
-			<label for="model" class="mb-1.5 block text-sm font-medium text-text-secondary"
-				>Model</label
-			>
-			<input
-				id="model"
-				type="text"
-				bind:value={model}
-				placeholder="e.g. Model 3"
-				required
-				class="w-full rounded-lg border border-border bg-surface-elevated px-4 py-3 text-base text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue transition-colors"
-			/>
-		</div>
-	</div>
-
-	<div class="grid grid-cols-2 gap-4">
-		<div>
-			<label for="color" class="mb-1.5 block text-sm font-medium text-text-secondary"
-				>Color</label
-			>
-			<input
-				id="color"
-				type="text"
-				bind:value={color}
-				placeholder="e.g. Pearl White"
-				required
-				class="w-full rounded-lg border border-border bg-surface-elevated px-4 py-3 text-base text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue transition-colors"
-			/>
-		</div>
-		<div>
 			<label for="year" class="mb-1.5 block text-sm font-medium text-text-secondary"
 				>Year</label
 			>
@@ -150,6 +125,51 @@
 				{/each}
 			</select>
 		</div>
+		<div>
+			<label for="model" class="mb-1.5 block text-sm font-medium text-text-secondary"
+				>Model</label
+			>
+			<select
+				id="model"
+				bind:value={model}
+				required
+				class="w-full rounded-lg border border-border bg-surface-elevated px-4 py-3 text-base text-text-primary focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+				disabled={availableModels.length === 0}
+			>
+				<option value="" disabled>Select model</option>
+				{#each availableModels as m}
+					<option value={m}>{m}</option>
+				{/each}
+			</select>
+		</div>
+	</div>
+
+	<div>
+		<label for="color" class="mb-1.5 block text-sm font-medium text-text-secondary"
+			>Color</label
+		>
+		<select
+			id="color"
+			bind:value={color}
+			required
+			class="w-full rounded-lg border border-border bg-surface-elevated px-4 py-3 text-base text-text-primary focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+			disabled={availableColors.length === 0}
+		>
+			<option value="" disabled>Select color</option>
+			{#each availableColors as c}
+				<option value={c.name}>{c.name}</option>
+			{/each}
+		</select>
+		{#if color}
+			{@const selectedColor = availableColors.find((c) => c.name === color)}
+			<div class="mt-2 flex items-center gap-2">
+				<span
+					class="inline-block h-5 w-5 rounded-full border border-border"
+					style="background-color: {selectedColor?.hex ?? '#888'}"
+				></span>
+				<span class="text-sm text-text-secondary">{color}</span>
+			</div>
+		{/if}
 	</div>
 
 	<div class="flex items-center justify-end gap-3 pt-2">
