@@ -13,6 +13,9 @@ export interface Booking {
 	userDisplayName: string;
 	chargerId: string;
 	chargerName: string;
+	bayLocation?: string;
+	bayNames?: string[];
+	bayName?: string; // The specific bay the user selected
 	status: BookingStatus;
 	startTime: string;
 	endTime: string;

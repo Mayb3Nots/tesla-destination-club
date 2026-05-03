@@ -23,7 +23,8 @@
 	type Props = {
 		bookings: Booking[];
 		totalPorts: number;
-		onconfirm: (startTime: Date, endTime: Date) => void;
+		bayNames?: string[];
+		onconfirm: (startTime: Date, endTime: Date, bayName: string) => void;
 		selection?: { startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null;
 		onselectionchange?: (selection: { startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null) => void;
 		isSubmitting?: boolean;
@@ -34,7 +35,7 @@
 		checkInActionLoading?: string | null;
 	};
 
-	let { bookings, totalPorts, onconfirm, selection: externalSelection = $bindable(null), onselectionchange, isSubmitting = false, currentUserId, oncheckin, oncheckout, oncancel, checkInActionLoading }: Props = $props();
+	let { bookings, totalPorts, bayNames, onconfirm, selection: externalSelection = $bindable(null), onselectionchange, isSubmitting = false, currentUserId, oncheckin, oncheckout, oncancel, checkInActionLoading }: Props = $props();
 
 	// Internal selection state
 	let selection = $state<{ startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null>(null);
@@ -75,6 +76,12 @@
 		selection
 			? (selection.endTime.getTime() - selection.startTime.getTime()) / 60000
 			: 0
+	);
+
+	let effectiveBayNames = $derived(bayNames ?? Array.from({ length: totalPorts }, (_, i) => `Bay ${i + 1}`));
+
+	let selectedBayLabel = $derived(
+		selection ? (effectiveBayNames[selection.portIndex] ?? effectiveBayNames[0]) : ''
 	);
 
 	function formatDuration(minutes: number): string {
@@ -142,18 +149,22 @@
 
 	let portAssignments = $derived(() => {
 		const active = bookings.filter((b) => b.status !== 'cancelled');
-		return computePortAssignments(active);
+		return computePortAssignments(active, bayNames);
 	});
 
 	let maxPorts = $derived(() => {
-		let max = 1;
+		const effectiveTotalPorts = bayNames?.length ?? totalPorts;
+		let max = effectiveTotalPorts;
 		for (const p of portAssignments().values()) {
 			if (p + 1 > max) max = p + 1;
 		}
 		return max;
 	});
 
+	let minDayWidth = $derived(Math.max(120, maxPorts() * 80));
+
 	function getAvailablePortForSlot(startMinutes: number, endMinutes: number): number {
+		const effectiveTotalPorts = bayNames?.length ?? totalPorts;
 		const usedPorts = new Set<number>();
 		for (const [id, port] of portAssignments()) {
 			const booking = bookings.find((b) => b.id === id);
@@ -164,16 +175,34 @@
 				usedPorts.add(port);
 			}
 		}
-		for (let p = 0; p < totalPorts; p++) {
+		for (let p = 0; p < effectiveTotalPorts; p++) {
 			if (!usedPorts.has(p)) return p;
 		}
 		return 0;
+	}
+
+	function isBayAvailable(bayIndex: number, startMinutes: number, endMinutes: number): boolean {
+		for (const [id, port] of portAssignments()) {
+			if (port !== bayIndex) continue;
+			const booking = bookings.find((b) => b.id === id);
+			if (!booking || booking.status === 'cancelled') continue;
+			const bStart = booking.startTime ? new Date(booking.startTime).getHours() * 60 + new Date(booking.startTime).getMinutes() : 0;
+			const bEnd = booking.endTime ? new Date(booking.endTime).getHours() * 60 + new Date(booking.endTime).getMinutes() : 0;
+			if (startMinutes < bEnd && endMinutes > bStart) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	function handleDayClick(e: MouseEvent, dayIndex: number) {
 		const target = e.currentTarget as HTMLElement;
 		const rect = target.getBoundingClientRect();
 		const y = e.clientY - rect.top;
+		const x = e.clientX - rect.left;
+		const effectiveTotalPorts = bayNames?.length ?? totalPorts;
+		const clickedBayIndex = Math.min(Math.floor((x / rect.width) * effectiveTotalPorts), effectiveTotalPorts - 1);
+
 		const minutes = snapToGrid((y / slotHeight) * SNAP_MINUTES);
 		const clampedMinutes = Math.max(0, minutes);
 
@@ -188,14 +217,24 @@
 		const endTime = new Date(day);
 		endTime.setHours(0, 0, 0, 0);
 		endTime.setMinutes(endMinutes);
-		const portIndex = getAvailablePortForSlot(clampedMinutes, Math.min(endMinutes, TOTAL_SLOTS * SNAP_MINUTES));
+
+		// Use the clicked bay if it's available, otherwise find another
+		const effectiveEndMin = Math.min(endMinutes, TOTAL_SLOTS * SNAP_MINUTES);
+		let portIndex: number;
+		if (isBayAvailable(clickedBayIndex, clampedMinutes, effectiveEndMin)) {
+			portIndex = clickedBayIndex;
+		} else {
+			portIndex = getAvailablePortForSlot(clampedMinutes, effectiveEndMin);
+		}
 
 		selection = { startTime, endTime, portIndex, isSuggested: false };
 	}
 
 	function handleSelectionConfirm() {
 		if (!selection || !canConfirm()) return;
-		onconfirm(selection.startTime, selection.endTime);
+		const effectiveBayNames = bayNames ?? Array.from({ length: totalPorts }, (_, i) => `Bay ${i + 1}`);
+		const selectedBayName = effectiveBayNames[selection.portIndex] ?? effectiveBayNames[0];
+		onconfirm(selection.startTime, selection.endTime, selectedBayName);
 	}
 
 	function handleSelectionCancel() {
@@ -209,11 +248,17 @@
 			const isOverflow = toDateString(end) !== toDateString(start);
 			// For port assignment, use the main portion (clamped to midnight if overflow)
 			const effectiveEndMin = isOverflow ? TOTAL_SLOTS * SNAP_MINUTES : endMin;
+			// Keep the same bay, but check if it's still available
+			let portIndex = selection.portIndex;
+			if (!isBayAvailable(portIndex, startMin, effectiveEndMin)) {
+				// Current bay is taken, find another
+				portIndex = getAvailablePortForSlot(startMin, effectiveEndMin);
+			}
 			selection = {
 				...selection,
 				startTime: start,
 				endTime: end,
-				portIndex: getAvailablePortForSlot(startMin, effectiveEndMin)
+				portIndex
 			};
 		}
 	}
@@ -248,37 +293,58 @@
 </script>
 
 <div class="flex flex-col h-full">
-	<!-- Day header -->
-	<div class="flex border-b border-border bg-surface-elevated">
-		<!-- Time gutter -->
-		<div class="w-16 shrink-0"></div>
-		{#each days as day, i}
-			<button
-				class="flex-1 flex flex-col items-center gap-0.5 py-3 text-center transition-colors hover:bg-surface-overlay border-l border-border-subtle {selection &&
-				toDateString(selection.startTime) === day.dateStr
-					? 'bg-tesla-red/10'
-					: ''}"
-				onclick={() => {
-					if (selection) {
-						handleSelectionCancel();
-					}
-				}}
-			>
-				<span class="text-[11px] font-medium uppercase tracking-wider text-text-muted {i === 0 ? 'text-tesla-red' : ''}">
-					{day.dayLabel}
-				</span>
-				<span class="text-sm font-bold font-[family-name:var(--font-display)] text-text-primary {i === 0 ? 'text-tesla-red' : ''}">
-					{day.dateLabel}
-				</span>
-			</button>
-		{/each}
-	</div>
+	<!-- Main scroll container (both horizontal and vertical) -->
+	<div class="flex-1 overflow-auto" bind:this={gridBodyEl}>
+		<!-- Sticky header wrapper -->
+		<div class="sticky top-0 z-30">
+			<!-- Day header -->
+			<div class="flex border-b border-border bg-surface-elevated">
+				<!-- Time gutter -->
+				<div class="w-16 shrink-0 sticky left-0 z-40 bg-surface-elevated"></div>
+				{#each days as day, i}
+					<button
+						style="min-width: {minDayWidth}px; flex: 1 0 {minDayWidth}px;"
+						class="flex flex-col items-center gap-0.5 py-3 text-center transition-colors hover:bg-surface-overlay border-l border-border-subtle {selection &&
+						toDateString(selection.startTime) === day.dateStr
+							? 'bg-tesla-red/10'
+							: ''}"
+						onclick={() => {
+							if (selection) {
+								handleSelectionCancel();
+							}
+						}}
+					>
+						<span class="text-[11px] font-medium uppercase tracking-wider text-text-muted {i === 0 ? 'text-tesla-red' : ''}">
+							{day.dayLabel}
+						</span>
+						<span class="text-sm font-bold font-[family-name:var(--font-display)] text-text-primary {i === 0 ? 'text-tesla-red' : ''}">
+							{day.dateLabel}
+						</span>
+					</button>
+				{/each}
+			</div>
 
-	<!-- Grid body (fills remaining space, scrollable) -->
-	<div class="flex-1 overflow-y-auto" bind:this={gridBodyEl}>
+			<!-- Bay name sub-headers (only when bay names are provided) -->
+			{#if bayNames && bayNames.length > 1}
+				<div class="flex border-b border-border-subtle bg-surface-elevated">
+					<div class="w-16 shrink-0 sticky left-0 z-40 bg-surface-elevated"></div>
+					{#each days as day}
+						<div style="min-width: {minDayWidth}px; flex: 1 0 {minDayWidth}px;" class="flex border-l border-border-subtle">
+							{#each bayNames as name, bayIdx}
+								<div class="flex-1 text-center text-[10px] font-medium text-accent-yellow py-1.5 truncate px-0.5 {bayIdx > 0 ? 'border-l border-border-subtle/50' : ''}">
+									{name}
+								</div>
+							{/each}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Grid body with fixed height for vertical content -->
 		<div class="flex relative" style="height: {totalGridHeight}px;">
-			<!-- Time labels gutter -->
-			<div class="w-16 shrink-0 relative overflow-visible">
+			<!-- Time labels gutter (sticky left) -->
+			<div class="w-16 shrink-0 relative overflow-visible sticky left-0 z-20 bg-surface">
 				{#each hours as hour}
 					<div
 						class="absolute right-2 text-[11px] font-medium text-text-muted select-none {hour === 0 ? 'translate-y-0' : '-translate-y-1/2'}"
@@ -290,10 +356,11 @@
 			</div>
 
 			<!-- Day columns -->
-			<div class="flex-1 flex relative">
+			<div class="flex relative" style="flex: 1 0 auto;">
 				{#each days as day, dayIndex}
 					<div
-						class="flex-1 relative border-l border-border-subtle"
+						style="min-width: {minDayWidth}px; flex: 1 0 {minDayWidth}px;"
+						class="relative border-l border-border-subtle"
 						onclick={(e) => {
 							handleDayClick(e, dayIndex);
 						}}
@@ -311,6 +378,16 @@
 								style="top: {hour * 4 * slotHeight + 2 * slotHeight}px;"
 							></div>
 						{/each}
+
+						<!-- Bay lane dividers (vertical lines between bays) -->
+						{#if (bayNames?.length ?? totalPorts) > 1}
+							{#each Array.from({ length: (bayNames?.length ?? totalPorts) - 1 }) as _, bayIdx}
+								<div
+									class="absolute top-0 bottom-0 border-l border-border-subtle/30 pointer-events-none z-[5]"
+									style="left: {((bayIdx + 1) / (bayNames?.length ?? totalPorts)) * 100}%;"
+								></div>
+							{/each}
+						{/if}
 
 						<!-- Current time indicator (only for today) -->
 						{#if dayIndex === 0}
@@ -330,10 +407,11 @@
 						<!-- Booking events for this day -->
 						{#each bookings.filter((b) => toDateString(new Date(b.startTime)) === day.dateStr && b.status !== 'cancelled') as booking}
 							{@const portIdx = portAssignments().get(booking.id) ?? 0}
+							{@const effectiveTotalPorts = Math.max(maxPorts(), bayNames?.length ?? totalPorts)}
 							<CalendarEvent
 								booking={booking}
 								portIndex={portIdx}
-								totalPorts={Math.max(maxPorts(), totalPorts)}
+								totalPorts={effectiveTotalPorts}
 								{slotHeight}
 								{currentUserId}
 								oncheckin={oncheckin}
@@ -349,7 +427,7 @@
 								startTime={selection.startTime}
 								endTime={selection.endTime}
 								portIndex={selection.portIndex}
-								totalPorts={Math.max(maxPorts(), totalPorts)}
+								totalPorts={Math.max(maxPorts(), bayNames?.length ?? totalPorts)}
 								isAvailable={isAvailable()}
 								isSuggested={selection.isSuggested}
 								onconfirm={handleSelectionConfirm}
@@ -394,6 +472,9 @@
 							Suggested
 						</span>
 					{/if}
+					<span class="shrink-0 rounded-full bg-accent-yellow/20 px-2 py-0.5 text-[10px] font-semibold text-accent-yellow">
+						{selectedBayLabel}
+					</span>
 					<div class="flex items-center gap-2 text-sm">
 						<span class="font-semibold text-text-primary">{formatTime12(selection.startTime)}</span>
 						<span class="text-text-muted">—</span>

@@ -7,6 +7,7 @@
 	import CoreButton from '$lib/components/CoreButton.svelte';
 	import QueueItem from '$lib/components/QueueItem.svelte';
 	import type { Charger } from '$lib/models/charger';
+	import { getBayLocation } from '$lib/models/charger';
 	import { BookingStatus } from '$lib/models/booking';
 	import { getNextAvailableTime, formatWaitTime, formatTime12 } from '$lib/calendar-helpers';
 
@@ -119,9 +120,8 @@
 				</h1>
 				<div class="mt-1 flex items-center gap-2">
 					<span class="text-sm text-text-secondary">{charger.name}</span>
-					<span class="text-text-muted">·</span>
-					<span class="text-sm text-text-muted">{charger.address}</span>
-				</div>
+			</div>
+				<p class="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-accent-yellow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> {getBayLocation(charger)}</p>
 			</div>
 			<span
 				class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold {freePorts > 0

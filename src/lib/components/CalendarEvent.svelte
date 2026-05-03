@@ -152,6 +152,9 @@
 			<div class="truncate opacity-90">
 				{isOwnBooking ? 'You' : booking.userDisplayName}
 			</div>
+			{#if booking.bayName}
+				<div class="truncate text-[10px] opacity-70">{booking.bayName}</div>
+			{/if}
 		{/if}
 		{#if isOwnBooking && booking.status === BookingStatus.Active}
 			<div class="flex items-center gap-1">

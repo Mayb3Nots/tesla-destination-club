@@ -318,6 +318,12 @@
 											</svg>
 											{formatDuration(booking.estimatedMinutes)}
 										</div>
+										{#if booking.bayName || booking.bayLocation || booking.bayNames}
+											<div class="flex items-center gap-2 text-accent-yellow">
+												<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+												<span class="text-xs font-medium">{booking.bayName || booking.bayLocation || (booking.bayNames && booking.bayNames.length > 0 ? booking.bayNames.length === 1 ? booking.bayNames[0] : `${booking.bayNames[0]} – ${booking.bayNames[booking.bayNames.length - 1]}` : '')}</span>
+											</div>
+										{/if}
 										{#if booking.status === BookingStatus.Active && booking.checkedInAt}
 											<div class="flex items-center gap-2 text-accent-green">
 												<svg

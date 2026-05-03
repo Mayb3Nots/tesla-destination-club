@@ -157,7 +157,7 @@ export const createBooking = onCall(async (request) => {
     );
   }
 
-  const { chargerId, startTime, endTime } = request.data;
+  const { chargerId, startTime, endTime, bayName } = request.data;
   const userId = auth.uid;
   const userEmail = auth.token?.email || "";
   const userDisplayName = auth.token?.name || userEmail.split("@")[0];
@@ -221,6 +221,19 @@ export const createBooking = onCall(async (request) => {
   }
   const chargerData = chargerDoc.data()!;
   const totalPorts = chargerData.totalPorts || 1;
+  const chargerBayNames = chargerData.bayNames || Array.from({ length: totalPorts }, (_, i) => `Bay ${i + 1}`);
+
+  // Validate bayName if provided
+  let resolvedBayName: string | undefined;
+  if (bayName) {
+    if (!chargerBayNames.includes(bayName)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Invalid bay name: ${bayName}. Available bays: ${chargerBayNames.join(", ")}`
+      );
+    }
+    resolvedBayName = bayName;
+  }
 
   // Check for overlapping bookings
   // Firestore only supports range filters on a single field, so we query by
@@ -236,12 +249,27 @@ export const createBooking = onCall(async (request) => {
   const overlappingDocs = candidateSnapshot.docs.filter(
     (doc) => doc.data().endTime > startTime
   );
-  const activePortsUsed = overlappingDocs.length;
-  if (activePortsUsed >= totalPorts) {
-    throw new HttpsError(
-      "already-exists",
-      "All ports at this charger are booked. Choose another time."
+
+  // If a specific bay is selected, check only that bay's availability
+  if (resolvedBayName) {
+    const bayOverlapping = overlappingDocs.filter(
+      (doc) => doc.data().bayName === resolvedBayName
     );
+    if (bayOverlapping.length > 0) {
+      throw new HttpsError(
+        "already-exists",
+        `Bay "${resolvedBayName}" is already booked at this time. Choose another bay or time.`
+      );
+    }
+  } else {
+    // No specific bay selected — check overall port availability
+    const activePortsUsed = overlappingDocs.length;
+    if (activePortsUsed >= totalPorts) {
+      throw new HttpsError(
+        "already-exists",
+        "All ports at this charger are booked. Choose another time."
+      );
+    }
   }
 
   // Check user doesn't already have an active booking
@@ -270,6 +298,9 @@ export const createBooking = onCall(async (request) => {
     userDisplayName,
     chargerId,
     chargerName: chargerData.name,
+    bayLocation: chargerData.bayLocation || (chargerData.totalPorts === 1 ? "Bay 1" : "Multiple bays available"),
+    bayNames: chargerBayNames,
+    bayName: resolvedBayName || chargerBayNames[0],
     status: "pending",
     startTime: start.toISOString(),
     endTime: end.toISOString(),

@@ -252,6 +252,7 @@ export async function createBooking(data: {
 	chargerId: string;
 	startTime: string;
 	endTime: string;
+	bayName?: string;
 }) {
 	const createFn = httpsCallable(functions, 'createBooking');
 	const result = await createFn(data);

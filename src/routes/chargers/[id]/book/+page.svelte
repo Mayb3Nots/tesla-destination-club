@@ -9,6 +9,7 @@
 	import CoreButton from '$lib/components/CoreButton.svelte';
 	import ShareButton from '$lib/components/ShareButton.svelte';
 	import type { Charger } from '$lib/models/charger';
+	import { getBayNames, getBayLocation } from '$lib/models/charger';
 	import type { Booking } from '$lib/models/booking';
 	import { formatTime12 } from '$lib/calendar-helpers';
 
@@ -25,11 +26,13 @@
 	let showManualInput = $state(false);
 	let calendarSelection = $state<{ startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null>(null);
 	let pendingManualTime = $state<{ startTime: Date; endTime: Date } | null>(null);
+	let pendingBayIndex = $state(0);
 
 	function openManualInput() {
 		// Seed pending state from current selection, or defaults
 		if (calendarSelection) {
 			pendingManualTime = { startTime: calendarSelection.startTime, endTime: calendarSelection.endTime };
+			pendingBayIndex = calendarSelection.portIndex;
 		} else {
 			const now = new Date();
 			const start = new Date(now);
@@ -37,6 +40,7 @@
 			const end = new Date(start);
 			end.setMinutes(end.getMinutes() + 60);
 			pendingManualTime = { startTime: start, endTime: end };
+			pendingBayIndex = 0;
 		}
 		showManualInput = true;
 	}
@@ -50,7 +54,7 @@
 			calendarSelection = {
 				startTime: pendingManualTime.startTime,
 				endTime: pendingManualTime.endTime,
-				portIndex: 0,
+				portIndex: pendingBayIndex,
 				isSuggested: false
 			};
 		}
@@ -98,7 +102,7 @@
 		return `📅 *Tesla Destination Club*\n\n*${charger.name}*\n${date}\n${formatTime12(new Date(bookingSuccess.startTime))} – ${formatTime12(new Date(bookingSuccess.endTime))}\n${bookingSuccess.estimatedMinutes} min`;
 	}
 
-	async function handleConfirmBooking(startTime: Date, endTime: Date) {
+	async function handleConfirmBooking(startTime: Date, endTime: Date, bayName: string) {
 		if (!charger || isSubmitting) return;
 		isSubmitting = true;
 		submitError = null;
@@ -107,7 +111,8 @@
 			const result = await createBooking({
 				chargerId: charger.id,
 				startTime: startTime.toISOString(),
-				endTime: endTime.toISOString()
+				endTime: endTime.toISOString(),
+				bayName
 			});
 			bookingSuccess = result;
 		} catch (err: any) {
@@ -182,6 +187,10 @@
 				<p class="mt-2 text-sm text-text-secondary">
 					Your slot at {charger?.name} has been reserved.
 				</p>
+				<p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-accent-yellow">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+					{charger ? getBayLocation(charger) : ''}
+				</p>
 				<div class="mt-6 rounded-xl bg-surface-overlay p-4 text-left">
 					<div class="space-y-2 text-sm">
 						<div class="flex justify-between">
@@ -199,6 +208,12 @@
 							<span class="text-text-muted">Duration</span>
 							<span class="text-text-primary">{bookingSuccess.estimatedMinutes} min</span>
 						</div>
+						{#if charger}
+							<div class="flex justify-between">
+								<span class="text-text-muted">Bay</span>
+								<span class="text-text-primary font-medium">{bookingSuccess.bayName || getBayNames(charger)[0]}</span>
+							</div>
+						{/if}
 					</div>
 				</div>
 				<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center sm:flex-wrap">
@@ -244,9 +259,8 @@
 					</h1>
 					<div class="mt-1 flex items-center gap-2">
 						<span class="text-sm text-text-secondary">{charger.name}</span>
-						<span class="text-text-muted">·</span>
-						<span class="text-sm text-text-muted">{charger.address}</span>
-					</div>
+				</div>
+				<p class="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-accent-yellow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> {getBayLocation(charger)}</p>
 				</div>
 				<div class="flex items-center gap-1.5 text-xs text-text-muted">
 					<svg
@@ -326,6 +340,25 @@
 							onchange={handleManualTimeChange}
 						/>
 
+						<!-- Bay selector -->
+						{#if charger && getBayNames(charger).length > 1}
+							<div class="mt-4">
+								<span class="mb-1.5 block text-xs font-medium text-text-muted">Select Bay</span>
+								<div class="flex flex-wrap gap-2">
+									{#each getBayNames(charger) as name, idx}
+										<button
+											class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors {pendingBayIndex === idx
+												? 'border-accent-yellow bg-accent-yellow/10 text-accent-yellow'
+												: 'border-border bg-surface text-text-secondary hover:bg-surface-overlay'}"
+											onclick={() => (pendingBayIndex = idx)}
+										>
+											{name}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
 						<!-- Confirm button -->
 						<div class="mt-4">
 							<CoreButton
@@ -344,6 +377,7 @@
 				<CalendarGrid
 					bookings={allBookings}
 					totalPorts={charger.totalPorts}
+					bayNames={getBayNames(charger)}
 					onconfirm={handleConfirmBooking}
 					bind:selection={calendarSelection}
 					{isSubmitting}

@@ -110,13 +110,56 @@ export function findNextAvailableSlot(
 }
 
 export function computePortAssignments(
-	bookings: { id: string; startTime: string; endTime: string }[]
+	bookings: { id: string; startTime: string; endTime: string; bayName?: string }[],
+	bayNames?: string[]
 ): Map<string, number> {
 	const sorted = [...bookings].sort(
 		(a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
 	);
 
 	const assignments = new Map<string, number>();
+
+	// If bayNames provided, use bay-aware assignment
+	if (bayNames && bayNames.length > 0) {
+		const unassigned: { id: string; startTime: string; endTime: string }[] = [];
+
+		for (const booking of sorted) {
+			if (booking.bayName) {
+				const bayIndex = bayNames.indexOf(booking.bayName);
+				if (bayIndex >= 0) {
+					assignments.set(booking.id, bayIndex);
+					continue;
+				}
+			}
+			unassigned.push(booking);
+		}
+
+		// Dynamic assignment for bookings without bayName (backward compat)
+		const portEndTimes: number[] = [];
+		for (const booking of unassigned) {
+			const bStart = timeToMinutes(new Date(booking.startTime));
+			let assigned = false;
+
+			for (let port = 0; port < portEndTimes.length; port++) {
+				if (bStart >= portEndTimes[port]) {
+					assignments.set(booking.id, port);
+					portEndTimes[port] = timeToMinutes(new Date(booking.endTime));
+					assigned = true;
+					break;
+				}
+			}
+
+			if (!assigned) {
+				const port = portEndTimes.length;
+				assignments.set(booking.id, port);
+				portEndTimes.push(timeToMinutes(new Date(booking.endTime)));
+			}
+		}
+
+		return assignments;
+	}
+
+	// Fall back to purely dynamic assignment
 	const portEndTimes: number[] = [];
 
 	for (const booking of sorted) {

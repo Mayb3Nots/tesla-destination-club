@@ -10,6 +10,7 @@
 	import { getAuthState } from '$lib/firebase/auth.svelte';
 	import CoreButton from '$lib/components/CoreButton.svelte';
 	import type { Charger } from '$lib/models/charger';
+	import { getBayLocation } from '$lib/models/charger';
 	import { BookingStatus } from '$lib/models/booking';
 	import type { Booking } from '$lib/models/booking';
 	import { getNextAvailableTime, formatWaitTime } from '$lib/calendar-helpers';
@@ -290,8 +291,10 @@
 					>
 						{charger.name}
 					</h2>
-					<p class="mt-1 text-sm leading-relaxed text-text-muted">{charger.address}</p>
-
+                <p class="mt-1 flex items-center gap-1.5 text-sm font-medium text-accent-yellow">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    {getBayLocation(charger)}
+                </p>
 					{#if userBooking}
 						<!-- Active/Upcoming session banner -->
 						<div
