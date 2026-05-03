@@ -8,12 +8,15 @@ import {
 	query,
 	where,
 	orderBy,
+	setDoc,
+	deleteDoc,
 	type QueryConstraint
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import type { Charger } from '$lib/models/charger';
 import type { PhysicalQueuer } from '$lib/models/charger';
 import type { Booking } from '$lib/models/booking';
+import type { Vehicle } from '$lib/models/vehicle';
 
 const functions = getFunctions();
 
@@ -280,4 +283,75 @@ export async function reportPhysicalQueuer(chargerId: string) {
 	const reportFn = httpsCallable(functions, 'reportPhysicalQueuer');
 	const result = await reportFn({ chargerId });
 	return result.data as { success: boolean; yieldedCount?: number };
+}
+
+// ── Vehicle Hooks ──────────────────────────────────────────────────────────────
+
+export function useVehicles() {
+	let vehicles = $state<Vehicle[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	const auth = getAuth();
+
+	async function fetch() {
+		const user = auth.currentUser;
+		if (!user) return;
+
+		loading = true;
+		error = null;
+		try {
+			const q = query(
+				collection(db, 'vehicles'),
+				where('userId', '==', user.uid),
+				orderBy('createdAt', 'desc')
+			);
+			const snapshot = await getDocs(q);
+			vehicles = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Vehicle));
+		} catch (err) {
+			console.error('Failed to load vehicles:', err);
+			error = 'Failed to load vehicles';
+		} finally {
+			loading = false;
+		}
+	}
+
+	return {
+		get vehicles() {
+			return vehicles;
+		},
+		get loading() {
+			return loading;
+		},
+		get error() {
+			return error;
+		},
+		fetch
+	};
+}
+
+export async function saveVehicle(
+	vehicle: Omit<Vehicle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>,
+	vehicleId?: string
+) {
+	const user = getAuth().currentUser;
+	if (!user) throw new Error('Not authenticated');
+
+	const now = new Date().toISOString();
+	const id = vehicleId || doc(collection(db, 'vehicles')).id;
+
+	const data: Vehicle = {
+		id,
+		userId: user.uid,
+		...vehicle,
+		createdAt: now,
+		updatedAt: now
+	};
+
+	await setDoc(doc(db, 'vehicles', id), data, { merge: true });
+	return data;
+}
+
+export async function deleteVehicle(vehicleId: string) {
+	await deleteDoc(doc(db, 'vehicles', vehicleId));
 }

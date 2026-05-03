@@ -73,7 +73,7 @@
 	let dragType = $state<'none' | 'top' | 'bottom' | 'move'>('none');
 	let dragStartY = $state(0);
 	let dragOriginalStart = $state(0);
-	let dragOriginalEnd = $state(0);
+	let dragOriginalDuration = $state(0); // absolute duration in minutes
 
 	function pointerDown(e: PointerEvent, type: 'top' | 'bottom' | 'move') {
 		e.preventDefault();
@@ -82,7 +82,7 @@
 		dragType = type;
 		dragStartY = e.clientY;
 		dragOriginalStart = startMinutes;
-		dragOriginalEnd = endMinutes;
+		dragOriginalDuration = durationMinutes;
 		if (!userAdjusted) userAdjusted = true;
 	}
 
@@ -96,26 +96,42 @@
 			const newStart = clamp(
 				snapToGrid(dragOriginalStart + deltaMinutes),
 				0,
-				dragOriginalEnd - MIN_DURATION_MINUTES
+				TOTAL_SLOTS * SNAP_MINUTES - MIN_DURATION_MINUTES
 			);
 			startMinutes = newStart;
-			onchange(minutesToDate(startMinutes, referenceDate), minutesToDate(endMinutes, referenceDate));
+			// Recalculate endMinutes to maintain original duration (may overflow)
+			let rawEnd = newStart + dragOriginalDuration;
+			if (rawEnd > TOTAL_SLOTS * SNAP_MINUTES) {
+				rawEnd = rawEnd - TOTAL_SLOTS * SNAP_MINUTES; // wrap to next day
+			}
+			endMinutes = rawEnd;
+			onchange(minutesToDate(startMinutes, referenceDate), minutesToDate(newStart + dragOriginalDuration, referenceDate));
 		} else if (dragType === 'bottom') {
-			const maxEnd = TOTAL_SLOTS * SNAP_MINUTES * 2; // Allow overflow into next day
-			const newEnd = clamp(
-				snapToGrid(dragOriginalEnd + deltaMinutes),
-				dragOriginalStart + MIN_DURATION_MINUTES,
-				maxEnd
+			// Calculate new absolute end relative to start
+			const absoluteStart = dragOriginalStart;
+			const absoluteNewEnd = absoluteStart + dragOriginalDuration + deltaMinutes;
+			const clampedAbsoluteEnd = clamp(
+				snapToGrid(absoluteNewEnd),
+				absoluteStart + MIN_DURATION_MINUTES,
+				TOTAL_SLOTS * SNAP_MINUTES * 2
 			);
-			endMinutes = newEnd;
-			onchange(minutesToDate(startMinutes, referenceDate), minutesToDate(endMinutes, referenceDate));
+			// Convert back to day-relative minutes
+			if (clampedAbsoluteEnd > TOTAL_SLOTS * SNAP_MINUTES) {
+				endMinutes = clampedAbsoluteEnd - TOTAL_SLOTS * SNAP_MINUTES;
+			} else {
+				endMinutes = clampedAbsoluteEnd;
+			}
+			onchange(minutesToDate(startMinutes, referenceDate), minutesToDate(clampedAbsoluteEnd, referenceDate));
 		} else if (dragType === 'move') {
-			const duration = dragOriginalEnd - dragOriginalStart;
-			const newStart = clamp(snapToGrid(dragOriginalStart + deltaMinutes), 0, TOTAL_SLOTS * SNAP_MINUTES - duration);
-			const newEnd = newStart + duration;
+			const newStart = clamp(snapToGrid(dragOriginalStart + deltaMinutes), 0, TOTAL_SLOTS * SNAP_MINUTES - MIN_DURATION_MINUTES);
 			startMinutes = newStart;
-			endMinutes = newEnd;
-			onchange(minutesToDate(startMinutes, referenceDate), minutesToDate(endMinutes, referenceDate));
+			let rawEnd = newStart + dragOriginalDuration;
+			if (rawEnd > TOTAL_SLOTS * SNAP_MINUTES) {
+				endMinutes = rawEnd - TOTAL_SLOTS * SNAP_MINUTES;
+			} else {
+				endMinutes = rawEnd;
+			}
+			onchange(minutesToDate(startMinutes, referenceDate), minutesToDate(newStart + dragOriginalDuration, referenceDate));
 		}
 	}
 

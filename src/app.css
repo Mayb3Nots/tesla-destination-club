@@ -57,6 +57,11 @@
 		min-height: 100dvh;
 		margin: 0;
 	}
+
+	button,
+	a {
+		cursor: pointer;
+	}
 }
 
 @utility animate-fade-up {
@@ -69,6 +74,10 @@
 
 @utility animate-scale-in {
 	animation: scale-in 0.5s var(--ease-out-expo) both;
+}
+
+@utility animate-slide-up {
+	animation: slide-up 0.35s var(--ease-out-expo) both;
 }
 
 @utility delay-100 {
@@ -127,6 +136,15 @@
 	to {
 		opacity: 1;
 		transform: scale(1);
+	}
+}
+
+@keyframes slide-up {
+	from {
+		transform: translateY(100%);
+	}
+	to {
+		transform: translateY(0);
 	}
 }
 

@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { useChargers, useBookingsRange, createBooking } from '$lib/firebase/firestore.svelte';
 	import CalendarGrid from '$lib/components/CalendarGrid.svelte';
+	import DateTimeInput from '$lib/components/DateTimeInput.svelte';
 	import CoreButton from '$lib/components/CoreButton.svelte';
 	import ShareButton from '$lib/components/ShareButton.svelte';
 	import type { Charger } from '$lib/models/charger';
@@ -16,6 +17,41 @@
 	let isSubmitting = $state(false);
 	let submitError = $state<string | null>(null);
 	let bookingSuccess = $state<{ bookingId: string } & Booking | null>(null);
+
+	let showManualInput = $state(false);
+	let calendarSelection = $state<{ startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null>(null);
+	let pendingManualTime = $state<{ startTime: Date; endTime: Date } | null>(null);
+
+	function openManualInput() {
+		// Seed pending state from current selection, or defaults
+		if (calendarSelection) {
+			pendingManualTime = { startTime: calendarSelection.startTime, endTime: calendarSelection.endTime };
+		} else {
+			const now = new Date();
+			const start = new Date(now);
+			start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15, 0, 0);
+			const end = new Date(start);
+			end.setMinutes(end.getMinutes() + 60);
+			pendingManualTime = { startTime: start, endTime: end };
+		}
+		showManualInput = true;
+	}
+
+	function handleManualTimeChange(startTime: Date, endTime: Date) {
+		pendingManualTime = { startTime, endTime };
+	}
+
+	function confirmManualInput() {
+		if (pendingManualTime) {
+			calendarSelection = {
+				startTime: pendingManualTime.startTime,
+				endTime: pendingManualTime.endTime,
+				portIndex: 0,
+				isSuggested: false
+			};
+		}
+		showManualInput = false;
+	}
 
 	let allBookings = $state<Booking[]>([]);
 	let bookingsService: ReturnType<typeof useBookingsRange> | null = null;
@@ -122,13 +158,13 @@
 					</div>
 				</div>
 				<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-					<ShareButton title="Booking Confirmed" text={buildShareText()} class="sm:w-auto w-full">
+					<ShareButton title="Booking Confirmed" text={buildShareText()} size="sm" class="sm:w-auto w-full">
 						Share
 					</ShareButton>
-					<CoreButton variant="primary" href="/bookings" class="sm:w-auto w-full">
+					<CoreButton variant="primary" href="/bookings" size="sm" class="sm:w-auto w-full">
 						View My Bookings
 					</CoreButton>
-					<CoreButton variant="secondary" href="/chargers/{chargerId}/queue" class="sm:w-auto w-full">
+					<CoreButton variant="secondary" href="/chargers/{chargerId}/queue" size="sm" class="sm:w-auto w-full">
 						View Queue
 					</CoreButton>
 				</div>
@@ -191,11 +227,82 @@
 				</div>
 			{/if}
 
-			<div class="flex-1 overflow-hidden rounded-2xl border border-border bg-surface-elevated">
+			<!-- Manual time input toggle -->
+			<div class="mb-3">
+				<button
+					class="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-overlay"
+					onclick={openManualInput}
+				>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+						<line x1="16" x2="16" y1="2" y2="6" />
+						<line x1="8" x2="8" y1="2" y2="6" />
+						<line x1="3" x2="21" y1="10" y2="10" />
+					</svg>
+					Enter manually
+				</button>
+			</div>
+
+			{#if showManualInput}
+				<!-- Backdrop -->
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="fixed inset-0 z-40 animate-fade-in bg-black/50 backdrop-blur-sm"
+					onclick={() => (showManualInput = false)}
+				></div>
+
+				<!-- Bottom sheet (mobile) / Dialog (desktop) -->
+				<div class="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center">
+					<div
+						class="w-full max-h-[85dvh] overflow-y-auto rounded-t-2xl border-t border-border bg-surface-elevated p-5 shadow-xl animate-slide-up sm:max-w-md sm:rounded-2xl sm:border sm:animate-scale-in"
+					>
+						<!-- Drag handle (mobile only) -->
+						<div class="mb-4 flex justify-center sm:hidden">
+							<div class="h-1 w-10 rounded-full bg-border"></div>
+						</div>
+
+						<!-- Header -->
+						<div class="mb-4 flex items-center justify-between">
+							<h3 class="font-display text-base font-semibold text-text-primary">Manual Input</h3>
+							<button
+								class="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary"
+								onclick={() => (showManualInput = false)}
+							>
+								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<line x1="18" x2="6" y1="6" y2="18" />
+									<line x1="6" x2="18" y1="6" y2="18" />
+								</svg>
+							</button>
+						</div>
+
+						<DateTimeInput
+							startTime={pendingManualTime?.startTime ?? new Date()}
+							endTime={pendingManualTime?.endTime ?? new Date()}
+							onchange={handleManualTimeChange}
+						/>
+
+						<!-- Confirm button -->
+						<div class="mt-4">
+							<CoreButton
+								variant="primary"
+								onclick={confirmManualInput}
+								class="w-full"
+							>
+								Confirm
+							</CoreButton>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<div class="min-h-[400px] flex-1 overflow-hidden rounded-2xl border border-border bg-surface-elevated">
 				<CalendarGrid
 					bookings={allBookings}
 					totalPorts={charger.totalPorts}
 					onconfirm={handleConfirmBooking}
+					bind:selection={calendarSelection}
+					{isSubmitting}
 				/>
 			</div>
 		{:else}

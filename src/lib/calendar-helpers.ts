@@ -74,28 +74,33 @@ export function findNextAvailableSlot(
 			startMinutes = 7 * 60;
 		}
 
-		const dayEndMinutes = 23 * 60 + 45;
+		const dayEndMinutes = TOTAL_SLOTS * SNAP_MINUTES - SNAP_MINUTES; // 23:45 - last possible start
 
 		const dayBookings = bookings.filter((b) => {
 			const bDate = new Date(b.startTime);
 			return toDateString(bDate) === toDateString(day) && b.status !== 'cancelled';
 		});
 
-		for (let t = startMinutes; t <= dayEndMinutes - DEFAULT_DURATION_MINUTES; t += SNAP_MINUTES) {
+		for (let t = startMinutes; t <= dayEndMinutes; t += SNAP_MINUTES) {
 			const slotEnd = t + DEFAULT_DURATION_MINUTES;
-			if (slotEnd > 24 * 60) continue;
 
+			// Check overlap — only against same-day bookings for the main portion
+			const effectiveEnd = Math.min(slotEnd, TOTAL_SLOTS * SNAP_MINUTES);
 			const overlapping = dayBookings.filter((b) => {
 				const bStart = timeToMinutes(new Date(b.startTime));
 				const bEnd = timeToMinutes(new Date(b.endTime));
-				return t < bEnd && slotEnd > bStart;
+				return t < bEnd && effectiveEnd > bStart;
 			}).length;
 
 			if (overlapping < totalPorts) {
+				// Create endTime that may overflow to next day
+				const endTimeDate = new Date(day);
+				endTimeDate.setHours(0, 0, 0, 0);
+				endTimeDate.setMinutes(slotEnd);
 				return {
 					date: day,
 					startTime: minutesToDate(t, day),
-					endTime: minutesToDate(slotEnd, day)
+					endTime: endTimeDate
 				};
 			}
 		}
@@ -144,8 +149,14 @@ export function checkSlotAvailability(
 	totalPorts: number,
 	excludeBookingId?: string
 ): boolean {
-	const startMin = timeToMinutes(startTime);
-	const endMin = timeToMinutes(endTime);
+	let startMin = timeToMinutes(startTime);
+	let endMin = timeToMinutes(endTime);
+	const isOverflow = toDateString(endTime) !== toDateString(startTime);
+
+	// For overflow, only check the first-day portion (we don't have next-day bookings in this set)
+	if (isOverflow) {
+		endMin = TOTAL_SLOTS * SNAP_MINUTES;
+	}
 
 	for (let t = startMin; t < endMin; t += SNAP_MINUTES) {
 		const slotEnd = Math.min(t + SNAP_MINUTES, endMin);

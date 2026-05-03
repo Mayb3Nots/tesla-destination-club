@@ -19,7 +19,7 @@
 	}: Props = $props();
 
 	const baseClasses =
-		'inline-flex items-center justify-center font-semibold font-[family-name:var(--font-display)] rounded-xl transition-all duration-300 ease-[var(--ease-out-expo)] cursor-pointer select-none';
+		'inline-flex items-center justify-center font-semibold font-[family-name:var(--font-display)] rounded-xl transition-all duration-300 ease-[var(--ease-out-expo)] select-none';
 
 	const variantClasses = {
 		primary:

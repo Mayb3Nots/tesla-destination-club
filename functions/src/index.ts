@@ -109,16 +109,20 @@ export const createBooking = onCall(async (request) => {
   const totalPorts = chargerData.totalPorts || 1;
 
   // Check for overlapping bookings
-  const overlappingSnapshot = await getDb()
+  // Firestore only supports range filters on a single field, so we query by
+  // startTime < endTime and filter endTime > startTime in code.
+  const candidateSnapshot = await getDb()
     .collection("chargers")
     .doc(chargerId)
     .collection("bookings")
     .where("startTime", "<", endTime)
-    .where("endTime", ">", startTime)
     .where("status", "in", ["pending", "active"])
     .get();
 
-  const activePortsUsed = overlappingSnapshot.size;
+  const overlappingDocs = candidateSnapshot.docs.filter(
+    (doc) => doc.data().endTime > startTime
+  );
+  const activePortsUsed = overlappingDocs.length;
   if (activePortsUsed >= totalPorts) {
     throw new HttpsError(
       "already-exists",

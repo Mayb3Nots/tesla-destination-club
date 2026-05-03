@@ -24,9 +24,31 @@
 		bookings: Booking[];
 		totalPorts: number;
 		onconfirm: (startTime: Date, endTime: Date) => void;
+		selection?: { startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null;
+		onselectionchange?: (selection: { startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null) => void;
+		isSubmitting?: boolean;
 	};
 
-	let { bookings, totalPorts, onconfirm }: Props = $props();
+	let { bookings, totalPorts, onconfirm, selection: externalSelection = $bindable(null), onselectionchange, isSubmitting = false }: Props = $props();
+
+	// Internal selection state
+	let selection = $state<{ startTime: Date; endTime: Date; portIndex: number; isSuggested: boolean } | null>(null);
+
+	// Sync internal → external (parent)
+	$effect(() => {
+		externalSelection = selection;
+		onselectionchange?.(selection);
+	});
+
+	// Sync external → internal
+	let syncingFromExternal = $state(false);
+	$effect(() => {
+		if (externalSelection) {
+			syncingFromExternal = true;
+			selection = externalSelection;
+			syncingFromExternal = false;
+		}
+	});
 
 	const today = new Date();
 	const days: { date: Date; dayLabel: string; dateLabel: string; dateStr: string }[] = [];
@@ -44,15 +66,6 @@
 	let slotHeight = $state(DEFAULT_SLOT_HEIGHT);
 	let totalGridHeight = $derived(TOTAL_SLOTS * slotHeight);
 
-	let selection = $state<{
-		startTime: Date;
-		endTime: Date;
-		portIndex: number;
-		isSuggested: boolean;
-	} | null>(null);
-
-	let isSubmitting = $state(false);
-
 	let selectionDuration = $derived(
 		selection
 			? (selection.endTime.getTime() - selection.startTime.getTime()) / 60000
@@ -62,18 +75,41 @@
 	let isAvailable = $derived(() => {
 		if (!selection) return true;
 		const sel = selection;
+		const startDateStr = toDateString(sel.startTime);
+		const endDateStr = toDateString(sel.endTime);
+		const isOverflow = endDateStr !== startDateStr;
+
+		// Check main portion (same day as start)
 		const dayBookings = bookings.filter(
 			(b) =>
-				toDateString(new Date(b.startTime)) === toDateString(sel.startTime) &&
+				toDateString(new Date(b.startTime)) === startDateStr &&
 				b.status !== 'cancelled'
 		);
-		return checkSlotAvailability(sel.startTime, sel.endTime, dayBookings, totalPorts);
+		const mainAvailable = checkSlotAvailability(sel.startTime, sel.endTime, dayBookings, totalPorts);
+
+		if (!mainAvailable) return false;
+
+		// Check overflow portion (next day)
+		if (isOverflow) {
+			const nextDayBookings = bookings.filter(
+				(b) =>
+					toDateString(new Date(b.startTime)) === endDateStr &&
+					b.status !== 'cancelled'
+			);
+			// Create a virtual range for the overflow portion (midnight to endTime on next day)
+			const overflowStart = new Date(sel.endTime);
+			overflowStart.setHours(0, 0, 0, 0);
+			const overflowAvailable = checkSlotAvailability(overflowStart, sel.endTime, nextDayBookings, totalPorts);
+			if (!overflowAvailable) return false;
+		}
+
+		return true;
 	});
 
 	let canConfirm = $derived(() => selection && isAvailable() && selectionDuration >= MIN_DURATION_MINUTES);
 
 	// Overflow: when selection extends past midnight into next day
-	let selectionOverflow = $derived(() => {
+	let selectionOverflow = $derived.by(() => {
 		if (!selection) return null;
 		const startMin = timeToMinutes(selection.startTime);
 		const endMin = timeToMinutes(selection.endTime);
@@ -130,7 +166,11 @@
 
 		const day = days[dayIndex].date;
 		const startTime = minutesToDate(clampedMinutes, day);
-		const endMinutes = clampedMinutes + DEFAULT_DURATION_MINUTES;
+		let endMinutes = clampedMinutes + DEFAULT_DURATION_MINUTES;
+		// Don't allow overflow on the last day (no next day in view)
+		if (dayIndex === days.length - 1) {
+			endMinutes = Math.min(endMinutes, TOTAL_SLOTS * SNAP_MINUTES);
+		}
 		// Allow overflow into next day
 		const endTime = new Date(day);
 		endTime.setHours(0, 0, 0, 0);
@@ -151,14 +191,16 @@
 
 	function handleSelectionChange(start: Date, end: Date) {
 		if (selection) {
+			const startMin = start.getHours() * 60 + start.getMinutes();
+			const endMin = end.getHours() * 60 + end.getMinutes();
+			const isOverflow = toDateString(end) !== toDateString(start);
+			// For port assignment, use the main portion (clamped to midnight if overflow)
+			const effectiveEndMin = isOverflow ? TOTAL_SLOTS * SNAP_MINUTES : endMin;
 			selection = {
 				...selection,
 				startTime: start,
 				endTime: end,
-				portIndex: getAvailablePortForSlot(
-					start.getHours() * 60 + start.getMinutes(),
-					end.getHours() * 60 + end.getMinutes()
-				)
+				portIndex: getAvailablePortForSlot(startMin, effectiveEndMin)
 			};
 		}
 	}
@@ -354,11 +396,19 @@
 						Cancel
 					</button>
 					<button
-						class="rounded-lg bg-tesla-red px-4 py-1.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-						disabled={!canConfirm()}
+						class="inline-flex items-center justify-center gap-2 rounded-lg bg-tesla-red px-4 py-1.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+						disabled={!canConfirm() || isSubmitting}
 						onclick={handleSelectionConfirm}
 					>
-						Confirm
+						{#if isSubmitting}
+							<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+							</svg>
+							Booking...
+						{:else}
+							Confirm
+						{/if}
 					</button>
 				</div>
 			</div>
