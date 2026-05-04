@@ -17,6 +17,8 @@ import type { Charger } from '$lib/models/charger';
 import type { PhysicalQueuer } from '$lib/models/charger';
 import type { Booking } from '$lib/models/booking';
 import type { Vehicle } from '$lib/models/vehicle';
+import type { HoggingReport } from '$lib/models/hoggingReport';
+import type { Hog } from '$lib/models/hog';
 
 const functions = getFunctions();
 
@@ -364,4 +366,90 @@ export async function saveVehicle(
 
 export async function deleteVehicle(vehicleId: string) {
 	await deleteDoc(doc(db, 'vehicles', vehicleId));
+}
+
+// ── Hogging Report Functions ──────────────────────────────────────────────
+
+export async function submitHoggingReport(data: {
+	plateNumber: string;
+	chargerId: string;
+	chargerName: string;
+	location?: string;
+	hoggingDurationMinutes?: number;
+	photoStoragePath: string;
+	reportedAt?: string;
+}) {
+	const submitFn = httpsCallable(functions, 'submitHoggingReport');
+	const result = await submitFn(data);
+	return result.data as { success: boolean; reportId: string };
+}
+
+export async function approveHoggingReport(reportId: string) {
+	const approveFn = httpsCallable(functions, 'approveHoggingReport');
+	const result = await approveFn({ reportId });
+	return result.data as { success: boolean };
+}
+
+export async function rejectHoggingReport(reportId: string, rejectionReason: string) {
+	const rejectFn = httpsCallable(functions, 'rejectHoggingReport');
+	const result = await rejectFn({ reportId, rejectionReason });
+	return result.data as { success: boolean };
+}
+
+export async function getLeaderboard() {
+	const leaderboardFn = httpsCallable(functions, 'getLeaderboard');
+	const result = await leaderboardFn();
+	return result.data as { success: boolean; leaderboard: (Hog & { rank: number })[] };
+}
+
+export function usePendingReports() {
+	let reports = $state<HoggingReport[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	function subscribe() {
+		loading = true;
+		error = null;
+
+		const q = query(
+			collection(db, 'hoggingReports'),
+			where('status', '==', 'pending'),
+			orderBy('createdAt', 'asc')
+		);
+
+		try {
+			const unsubscribe = onSnapshot(
+				q,
+				(snapshot) => {
+					reports = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as HoggingReport));
+					loading = false;
+				},
+				(err) => {
+					console.error('Failed to load pending reports:', err);
+					error = 'Failed to load reports';
+					loading = false;
+				}
+			);
+
+			return unsubscribe;
+		} catch (err) {
+			console.error('Failed to subscribe to pending reports:', err);
+			error = 'Failed to subscribe to reports';
+			loading = false;
+			return null;
+		}
+	}
+
+	return {
+		get reports() {
+			return reports;
+		},
+		get loading() {
+			return loading;
+		},
+		get error() {
+			return error;
+		},
+		subscribe
+	};
 }

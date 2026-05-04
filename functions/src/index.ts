@@ -679,3 +679,241 @@ export const sendCheckInReminders = onSchedule(
     }
   }
 );
+
+// ── Hogging Report Submission ───────────────────────────────────────────────
+
+export const submitHoggingReport = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be signed in to report a hogging incident."
+    );
+  }
+
+  const { plateNumber, chargerId, chargerName, location, hoggingDurationMinutes, photoStoragePath } = request.data;
+  const userId = auth.uid;
+  const userEmail = auth.token?.email || "";
+  const userDisplayName = auth.token?.name || userEmail.split("@")[0];
+
+  // Validation
+  if (!plateNumber || !chargerId || !photoStoragePath) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: plateNumber, chargerId, photoStoragePath."
+    );
+  }
+
+  if (typeof plateNumber !== "string" || plateNumber.trim().length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Plate number must be a non-empty string."
+    );
+  }
+
+  // Basic plate number validation (alphanumeric and dashes/spaces)
+  if (!/^[A-Z0-9\s\-]+$/i.test(plateNumber)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Invalid plate number format. Use letters, numbers, dashes, or spaces."
+    );
+  }
+
+  // Check charger exists
+  const chargerDoc = await getDb().collection("chargers").doc(chargerId).get();
+  if (!chargerDoc.exists) {
+    throw new HttpsError("not-found", "Charger not found.");
+  }
+
+  // Normalize plate number to uppercase
+  const normalizedPlate = plateNumber.toUpperCase().trim();
+
+  // Optional: Check user hasn't already reported this plate on the same day
+  const today = new Date().toISOString().split("T")[0];
+  const todayStart = `${today}T00:00:00Z`;
+  const todayEnd = `${today}T23:59:59Z`;
+
+  const existingReportSnapshot = await getDb()
+    .collection("hoggingReports")
+    .where("plateNumber", "==", normalizedPlate)
+    .where("reportedByUserId", "==", userId)
+    .where("reportedAt", ">=", todayStart)
+    .where("reportedAt", "<=", todayEnd)
+    .limit(1)
+    .get();
+
+  if (!existingReportSnapshot.empty) {
+    throw new HttpsError(
+      "already-exists",
+      "You have already reported this plate today. Please wait before submitting another report."
+    );
+  }
+
+  const now = new Date();
+  const reportRef = getDb().collection("hoggingReports").doc();
+
+  const report = {
+    plateNumber: normalizedPlate,
+    reportedAt: request.data.reportedAt || now.toISOString(),
+    chargerId,
+    chargerName: chargerName || chargerDoc.data()?.name || "Unknown",
+    location: location || "",
+    hoggingDurationMinutes: hoggingDurationMinutes || null,
+    photoStoragePath,
+    reportedByUserId: userId,
+    reportedByEmail: userEmail,
+    reportedByDisplayName: userDisplayName,
+    status: "pending",
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+
+  await reportRef.set(report);
+  logger.info(`Hogging report submitted: ${reportRef.id} for plate ${normalizedPlate} by user ${userId}`);
+
+  return { success: true, reportId: reportRef.id };
+});
+
+// ── Approve Hogging Report (Admin Only) ──────────────────────────────────
+
+export const approveHoggingReport = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  // Check if user is admin
+  const isAdmin = auth.token?.isAdmin === true;
+  if (!isAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only admins can approve hogging reports."
+    );
+  }
+
+  const { reportId } = request.data;
+  if (!reportId) {
+    throw new HttpsError("invalid-argument", "Missing required field: reportId.");
+  }
+
+  const reportRef = getDb().collection("hoggingReports").doc(reportId);
+  const reportDoc = await reportRef.get();
+
+  if (!reportDoc.exists) {
+    throw new HttpsError("not-found", "Report not found.");
+  }
+
+  const reportData = reportDoc.data()!;
+  if (reportData.status !== "pending") {
+    throw new HttpsError(
+      "failed-precondition",
+      `Report is already ${reportData.status}. Cannot approve.`
+    );
+  }
+
+  const now = new Date();
+  const plateNumber = reportData.plateNumber;
+
+  // Update report status to approved
+  await reportRef.update({
+    status: "approved",
+    approvedByAdminId: auth.uid,
+    approvalTimestamp: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  // Increment hog tally (create if doesn't exist)
+  const hogRef = getDb().collection("hoggers").doc(plateNumber);
+  const hogDoc = await hogRef.get();
+
+  if (hogDoc.exists) {
+    // Increment existing count
+    await hogRef.update({
+      approvedReportCount: (hogDoc.data()?.approvedReportCount || 0) + 1,
+      lastReportedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+  } else {
+    // Create new hog entry
+    await hogRef.set({
+      plateNumber,
+      approvedReportCount: 1,
+      lastReportedAt: now.toISOString(),
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+  }
+
+  logger.info(`Hogging report ${reportId} approved by admin ${auth.uid}. Hog tally: ${plateNumber}`);
+
+  return { success: true };
+});
+
+// ── Reject Hogging Report (Admin Only) ───────────────────────────────────
+
+export const rejectHoggingReport = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  // Check if user is admin
+  const isAdmin = auth.token?.isAdmin === true;
+  if (!isAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only admins can reject hogging reports."
+    );
+  }
+
+  const { reportId, rejectionReason } = request.data;
+  if (!reportId) {
+    throw new HttpsError("invalid-argument", "Missing required field: reportId.");
+  }
+
+  const reportRef = getDb().collection("hoggingReports").doc(reportId);
+  const reportDoc = await reportRef.get();
+
+  if (!reportDoc.exists) {
+    throw new HttpsError("not-found", "Report not found.");
+  }
+
+  const reportData = reportDoc.data()!;
+  if (reportData.status !== "pending") {
+    throw new HttpsError(
+      "failed-precondition",
+      `Report is already ${reportData.status}. Cannot reject.`
+    );
+  }
+
+  const now = new Date();
+
+  await reportRef.update({
+    status: "rejected",
+    rejectionReason: rejectionReason || "",
+    updatedAt: now.toISOString(),
+  });
+
+  logger.info(`Hogging report ${reportId} rejected by admin ${auth.uid}.`);
+
+  return { success: true };
+});
+
+// ── Get Leaderboard (Public) ─────────────────────────────────────────────
+
+export const getLeaderboard = onCall(async () => {
+  const snapshot = await getDb()
+    .collection("hoggers")
+    .where("approvedReportCount", ">=", 2)
+    .orderBy("approvedReportCount", "desc")
+    .orderBy("plateNumber", "asc")
+    .limit(10)
+    .get();
+
+  const leaderboard = snapshot.docs.map((doc, index) => ({
+    rank: index + 1,
+    ...doc.data(),
+  }));
+
+  return { success: true, leaderboard };
+});

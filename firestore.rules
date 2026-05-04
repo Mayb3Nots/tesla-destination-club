@@ -33,5 +33,30 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // Hogging Reports — authenticated users can submit reports
+    match /hoggingReports/{reportId} {
+      // Authenticated users can create reports
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.reportedByUserId;
+      
+      // Report authors and admins can read their own/all reports
+      allow read: if request.auth != null && 
+                     (request.auth.uid == resource.data.reportedByUserId || 
+                      request.auth.token.isAdmin == true ||
+                      resource.data.status == 'approved');
+      
+      // Only admins can update (approve/reject reports)
+      allow update: if request.auth != null && request.auth.token.isAdmin == true;
+      
+      allow delete: if false;
+    }
+
+    // Hoggers Leaderboard — readable by anyone (public), writable only via cloud function
+    match /hoggers/{plateNumber} {
+      allow read: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

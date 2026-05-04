@@ -89,6 +89,18 @@
 						Chargers
 					</a>
 					<a
+						href="/leaderboard"
+						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+					>
+						Leaderboard
+					</a>
+					<a
+						href="/report"
+						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+					>
+						Report
+					</a>
+					<a
 						href="/faq"
 						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
 					>

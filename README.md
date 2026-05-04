@@ -35,13 +35,30 @@ and remember that the goal is a better experience for the whole community, not j
 - **Live queue** — see who's currently charging, how long they have left, and your position in line
 - **Sharing** — after booking a slot, share your booking details to any channel you like,
   so non-app users are always in the loop
+- **Report hogging** — if you spot a car not using a charger, submit a photo report. Our community team reviews it,
+  and flagged repeat offenders show up on the public leaderboard as a gentle accountability measure
+
+## How Hogging Reports Work
+
+**The Problem:** Sometimes a car parks at a charger but never actually charges. The charger sits idle, blocking others from using it.
+
+**The Solution:**
+
+1. **Spot it** — If you see a car hogging a charger without using it, open the Report tab
+2. **Snap a photo** — Upload a quick photo as proof, enter the license plate, and submit
+3. **We review it** — Our team reviews each report to make sure it's legit (no false accusations)
+4. **Leaderboard appears** — Once a plate gets 2+ confirmed reports, it shows up on our public leaderboard
+5. **Community accountability** — Repeat hoggers become visible to everyone, creating gentle social pressure to change behavior
+
+**Fair first time:** Plates only show up on the leaderboard after 2+ reports. One mistake doesn't warrant public calling-out.
+
+**Check it out:** Visit the [Leaderboard](#) to see top hoggers in real time and submit your own reports.
 
 ## Coming Soon
 
 - **Smart notifications** — get alerted when your slot is approaching or when one opens up early
 - **No-show auto-release** — miss your check-in window and your slot passes to the next person
 - **Community reports** — flag when a charger is occupied by a non-app user so the queue stays accurate
-- **Overstay reports** — flag hoggers with photo and timestamp evidence
 - **Live wait estimates** — dynamic ETA based on queue depth and average session length
 - **Auto-check-in via location** — your session starts automatically when you pull up to the charger
 - **Native mobile app** — iOS and Android

@@ -45,6 +45,34 @@
           "mode": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "hoggingReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "mode": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "hoggers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "approvedReportCount",
+          "mode": "DESCENDING"
+        },
+        {
+          "fieldPath": "plateNumber",
+          "mode": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -34,6 +34,9 @@
 			<span class="font-display text-lg font-bold tracking-tight text-text-primary">Destination Club</span>
 		</div>
 		<div class="flex items-center gap-2">
+			<CoreButton variant="ghost" size="sm" href="/leaderboard">
+				Leaderboard
+			</CoreButton>
 			<CoreButton variant="ghost" size="sm" href="/chargers">
 				Chargers
 			</CoreButton>
