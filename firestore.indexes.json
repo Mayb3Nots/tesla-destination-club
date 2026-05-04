@@ -73,6 +73,24 @@
           "mode": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "hoggingReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "plateNumber",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "reportedByUserId",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "reportedAt",
+          "mode": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

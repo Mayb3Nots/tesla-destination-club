@@ -1,12 +1,29 @@
 <script lang="ts">
 	import CoreButton from '$lib/components/CoreButton.svelte';
+	import { onMount } from 'svelte';
+
+	const words = ['guessing', 'camping', 'wasting time', 'stressing', 'gambling', 'hovering', 'waiting around', 'rolling the dice'];
+	let currentWordIndex = $state(0);
+	let fadingOut = $state(false);
+
+	onMount(() => {
+		const interval = setInterval(() => {
+			fadingOut = true;
+			setTimeout(() => {
+				currentWordIndex = (currentWordIndex + 1) % words.length;
+				fadingOut = false;
+			}, 400);
+		}, 2500);
+
+		return () => clearInterval(interval);
+	});
 </script>
 
 <svelte:head>
-	<title>Tesla Destination Club — Fair Charging for Every Owner</title>
+	<title>Tesla Destination Club — Stop Guessing, Start Charging</title>
 	<meta
 		name="description"
-		content="Book slots, track live queues, and get notified when it's your turn. The fair way to share Tesla destination chargers in Malaysia."
+		content="Know when chargers are free, book your slot, and show up when it's your turn. Save time at Tesla destination chargers in Malaysia."
 	/>
 </svelte:head>
 
@@ -54,15 +71,23 @@
 				<span class="text-sm font-medium text-text-secondary">Built for Tesla owners in Malaysia</span>
 			</div>
 
-			<h1 class="animate-fade-up delay-100 font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-text-primary sm:text-5xl lg:text-6xl">
-				Fair charging.
+			<h1 class="animate-fade-up delay-100 font-display text-3xl font-extrabold leading-[1.1] tracking-tight text-text-primary sm:text-4xl lg:text-5xl">
+				Stop
+				<span
+					class="text-tesla-red inline-block transition-all duration-400 min-w-[3ch]"
+					class:opacity-0={fadingOut}
+					class:translate-y-1={fadingOut}
+				>
+					{words[currentWordIndex]}
+				</span>
+				for
 				<br />
-				<span class="text-tesla-red">No more waiting games.</span>
+				a destination charger.
 			</h1>
 
 			<p class="animate-fade-up delay-200 mx-auto mt-6 max-w-xl text-lg leading-relaxed text-text-secondary sm:text-xl">
-				Tesla destination chargers are free — but "free for all" doesn't mean fair for all.
-				Book a slot, track the queue, and charge without the stress.
+				No more driving there only to find all spots taken. No more camping in the car park.
+				See real-time availability, book your slot, and show up when it's your turn.
 			</p>
 
 			<div class="animate-fade-up delay-300 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -154,10 +179,10 @@
 		<div class="mx-auto max-w-6xl px-6 lg:px-8">
 			<div class="mx-auto mb-16 max-w-2xl text-center">
 				<h2 class="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
-					Simple. Fast. Fair.
+					How it saves you time
 				</h2>
 				<p class="mt-4 text-lg text-text-secondary">
-					Three steps to stress-free charging
+					Three steps — no more guesswork
 				</p>
 			</div>
 
@@ -167,9 +192,9 @@
 					<div class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-tesla-red/10 text-lg font-bold text-tesla-red font-display transition-colors group-hover:bg-tesla-red/20">
 						1
 					</div>
-					<h3 class="mb-2 font-display text-lg font-semibold text-text-primary">Book a Slot</h3>
+					<h3 class="mb-2 font-display text-lg font-semibold text-text-primary">Check Availability</h3>
 					<p class="text-sm leading-relaxed text-text-secondary">
-						Pick your charger location and reserve a time window. No more driving there only to find all spots taken.
+						See which chargers are free right now and how long the wait is. No need to drive there to find out.
 					</p>
 				</div>
 
@@ -178,9 +203,9 @@
 					<div class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-accent-blue/10 text-lg font-bold text-accent-blue font-display transition-colors group-hover:bg-accent-blue/20">
 						2
 					</div>
-					<h3 class="mb-2 font-display text-lg font-semibold text-text-primary">Track the Queue</h3>
+					<h3 class="mb-2 font-display text-lg font-semibold text-text-primary">Book Your Slot</h3>
 					<p class="text-sm leading-relaxed text-text-secondary">
-						See who's charging right now, how long they have left, and your position in line. Real-time, no guessing.
+						Reserve a time window so you can plan your day. Go grab a coffee, run errands — show up when it's your turn.
 					</p>
 				</div>
 
@@ -189,34 +214,34 @@
 					<div class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-accent-green/10 text-lg font-bold text-accent-green font-display transition-colors group-hover:bg-accent-green/20">
 						3
 					</div>
-					<h3 class="mb-2 font-display text-lg font-semibold text-text-primary">Charge Up</h3>
+					<h3 class="mb-2 font-display text-lg font-semibold text-text-primary">Get Notified</h3>
 					<p class="text-sm leading-relaxed text-text-secondary">
-						Get notified when it's your turn. Pull up, plug in, and enjoy. Share your status with the WhatsApp group in one tap.
+						We'll ping you when it's almost your turn. Pull up, plug in, and get on with your day. Share your status to WhatsApp in one tap.
 					</p>
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<!-- Philosophy Section -->
+	<!-- Time Saved Section -->
 	<section class="relative z-10 border-t border-border-subtle py-24 lg:py-32">
 		<div class="mx-auto max-w-6xl px-6 lg:px-8">
 			<div class="mx-auto max-w-3xl">
 				<div class="overflow-hidden rounded-2xl border border-border bg-surface-elevated p-8 sm:p-12">
 					<div class="mb-6 flex items-center gap-3">
 						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-tesla-red)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+							<circle cx="12" cy="12" r="10" />
+							<polyline points="12 6 12 12 16 14" />
 						</svg>
-						<h2 class="font-display text-2xl font-bold text-text-primary sm:text-3xl">Our Promise</h2>
+						<h2 class="font-display text-2xl font-bold text-text-primary sm:text-3xl">Your time matters</h2>
 					</div>
 					<p class="mb-6 text-lg leading-relaxed text-text-secondary">
-						The app exists to serve the community — not to give app users an unfair advantage.
-						If someone is physically present and waiting at the charger, they take priority. <strong class="text-text-primary">Always.</strong>
+						We've all been there — drive to a destination charger, find all spots taken, and end up sitting around waiting.
+						This app exists so you can <strong class="text-text-primary">stop wasting time</strong> and actually plan your charge.
 					</p>
 					<p class="text-base leading-relaxed text-text-muted">
-						Not everyone is on this platform yet — and that's okay. Be patient, be gracious,
-						and remember that the goal is a better experience for the whole community,
-						not just app users.
+						If someone is physically at the charger, they take priority — that's just basic courtesy.
+						This tool is about making the whole process smoother for everyone, whether you use the app or not.
 					</p>
 				</div>
 			</div>
@@ -228,10 +253,10 @@
 		<div class="mx-auto max-w-6xl px-6 lg:px-8">
 			<div class="mx-auto mb-16 max-w-2xl text-center">
 				<h2 class="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
-					Everything you need, nothing you don't
+					Built for the real-world charging experience
 				</h2>
 				<p class="mt-4 text-lg text-text-secondary">
-					Designed to keep things simple so you can focus on the road
+					Everything you need to skip the wait and get charged up
 				</p>
 			</div>
 
@@ -244,7 +269,7 @@
 						<line x1="3" y1="10" x2="21" y2="10" />
 					</svg>
 					<h3 class="mb-2 font-display text-base font-semibold text-text-primary">Slot Booking</h3>
-					<p class="text-sm leading-relaxed text-text-secondary">Reserve a time at a destination charger so everyone gets a fair turn.</p>
+					<p class="text-sm leading-relaxed text-text-secondary">Reserve a time slot so you can plan your day instead of sitting around waiting.</p>
 				</div>
 
 				<div class="rounded-2xl border border-border bg-surface-elevated p-8">
@@ -252,18 +277,16 @@
 						<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
 					</svg>
 					<h3 class="mb-2 font-display text-base font-semibold text-text-primary">Live Queue</h3>
-					<p class="text-sm leading-relaxed text-text-secondary">See who's charging, how long they have left, and your position in line.</p>
+					<p class="text-sm leading-relaxed text-text-secondary">See who's charging and how long they have left — before you even leave the house.</p>
 				</div>
 
 				<div class="rounded-2xl border border-border bg-surface-elevated p-8">
 					<svg class="mb-4 text-accent-green" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-						<circle cx="9" cy="7" r="4" />
-						<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-						<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+						<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+						<path d="M13.73 21a2 2 0 0 1-3.46 0" />
 					</svg>
-					<h3 class="mb-2 font-display text-base font-semibold text-text-primary">Community Reports</h3>
-					<p class="text-sm leading-relaxed text-text-secondary">Flag when a charger is occupied by a non-app user so the queue stays accurate.</p>
+					<h3 class="mb-2 font-display text-base font-semibold text-text-primary">Push Notifications</h3>
+					<p class="text-sm leading-relaxed text-text-secondary">Get pinged when it's almost your turn so you can time your arrival perfectly.</p>
 				</div>
 
 				<div class="rounded-2xl border border-border bg-surface-elevated p-8">
@@ -271,7 +294,7 @@
 						<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 					</svg>
 					<h3 class="mb-2 font-display text-base font-semibold text-text-primary">WhatsApp Sharing</h3>
-					<p class="text-sm leading-relaxed text-text-secondary">Share your booking to the community group in one tap so non-app users stay in the loop.</p>
+					<p class="text-sm leading-relaxed text-text-secondary">Share your booking to the community group in one tap so others know the charger is taken.</p>
 				</div>
 			</div>
 		</div>
@@ -282,10 +305,10 @@
 		<div class="mx-auto max-w-6xl px-6 lg:px-8">
 			<div class="mx-auto max-w-2xl text-center">
 				<h2 class="font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
-					Ready to charge smarter?
+					Ready to stop waiting around?
 				</h2>
 				<p class="mt-4 text-lg text-text-secondary">
-					Join the community of Tesla owners making destination charging fair for everyone.
+					Join the Tesla owners who'd rather plan ahead than camp at a charger.
 				</p>
 				<div class="mt-10">
 					<CoreButton variant="primary" size="lg" href="/login">

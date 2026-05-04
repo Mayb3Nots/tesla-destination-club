@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getAuthState } from '$lib/firebase/auth.svelte';
+	import { isAdminEmail } from '$lib/admin';
 	import { onMount } from 'svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import NotificationPermissionBanner from '$lib/components/NotificationPermissionBanner.svelte';
@@ -178,6 +179,18 @@
 											</svg>
 											My Vehicles
 										</a>
+										{#if isAdminEmail(auth.currentUser?.email)}
+										<a
+											href="/admin"
+											onclick={() => (profileMenuOpen = false)}
+											class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+										>
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+												<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+											</svg>
+											Admin Panel
+										</a>
+									{/if}
 										<div class="my-1 border-t border-border"></div>									<button
 										onclick={() => {
 											profileMenuOpen = false;

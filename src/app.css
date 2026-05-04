@@ -167,6 +167,10 @@
 	}
 }
 
+@utility duration-400 {
+	transition-duration: 400ms;
+}
+
 @layer base {
 	input:-webkit-autofill,
 	input:-webkit-autofill:hover,
