@@ -712,7 +712,7 @@ export const submitHoggingReport = onCall(async (request) => {
   }
 
   // Basic plate number validation (alphanumeric and dashes/spaces)
-  if (!/^[A-Z0-9\s\-]+$/i.test(plateNumber)) {
+  if (!/^[A-Z0-9\s-]+$/i.test(plateNumber)) {
     throw new HttpsError(
       "invalid-argument",
       "Invalid plate number format. Use letters, numbers, dashes, or spaces."
@@ -898,6 +898,164 @@ export const rejectHoggingReport = onCall(async (request) => {
 
   return { success: true };
 });
+
+// ── Unregistered Charge Report ──────────────────────────────────────────
+
+const UNREGISTERED_REPORT_TTL_MINUTES = 120; // Reports auto-expire after 2 hours
+
+export const submitUnregisteredChargeReport = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be signed in to report an unregistered charger."
+    );
+  }
+
+  const { chargerId, chargerName, plateNumber, bayName, estimatedDurationMinutes, photoStoragePath } = request.data;
+  const userId = auth.uid;
+  const userEmail = auth.token?.email || "";
+  const userDisplayName = auth.token?.name || userEmail.split("@")[0];
+
+  if (!chargerId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required field: chargerId."
+    );
+  }
+
+  // Check charger exists
+  const chargerDoc = await getDb().collection("chargers").doc(chargerId).get();
+  if (!chargerDoc.exists) {
+    throw new HttpsError("not-found", "Charger not found.");
+  }
+
+  // Validate plate number if provided
+  if (plateNumber && !/^[A-Z0-9\s-]+$/i.test(plateNumber)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Invalid plate number format. Use letters, numbers, dashes, or spaces."
+    );
+  }
+
+  // Rate limit: max 3 reports per user per charger per hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const recentReportsSnapshot = await getDb()
+    .collection("unregisteredChargeReports")
+    .where("chargerId", "==", chargerId)
+    .where("reportedByUserId", "==", userId)
+    .where("createdAt", ">=", oneHourAgo)
+    .limit(3)
+    .get();
+
+  if (recentReportsSnapshot.size >= 3) {
+    throw new HttpsError(
+      "resource-exhausted",
+      "You've submitted too many reports for this charger recently. Please try again later."
+    );
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + UNREGISTERED_REPORT_TTL_MINUTES * 60 * 1000);
+  const reportRef = getDb().collection("unregisteredChargeReports").doc();
+
+  const report = {
+    chargerId,
+    chargerName: chargerName || chargerDoc.data()?.name || "Unknown",
+    plateNumber: plateNumber ? plateNumber.toUpperCase().trim() : "",
+    bayName: bayName || "",
+    estimatedDurationMinutes: estimatedDurationMinutes || null,
+    photoStoragePath: photoStoragePath || "",
+    reportedByUserId: userId,
+    reportedByEmail: userEmail,
+    reportedByDisplayName: userDisplayName,
+    reportedAt: now.toISOString(),
+    status: "active",
+    expiresAt: expiresAt.toISOString(),
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+
+  await reportRef.set(report);
+  logger.info(`Unregistered charge report submitted: ${reportRef.id} for charger ${chargerId} by user ${userId}`);
+
+  return { success: true, reportId: reportRef.id };
+});
+
+// ── Resolve Unregistered Charge Report ────────────────────────────────
+
+export const resolveUnregisteredChargeReport = onCall(async (request) => {
+  const { auth } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const { reportId } = request.data;
+  if (!reportId) {
+    throw new HttpsError("invalid-argument", "Missing required field: reportId.");
+  }
+
+  const reportRef = getDb().collection("unregisteredChargeReports").doc(reportId);
+  const reportDoc = await reportRef.get();
+
+  if (!reportDoc.exists) {
+    throw new HttpsError("not-found", "Report not found.");
+  }
+
+  // Only the reporter or an admin can resolve
+  const reportData = reportDoc.data()!;
+  const isAdmin = auth.token?.isAdmin === true;
+  if (reportData.reportedByUserId !== auth.uid && !isAdmin) {
+    throw new HttpsError("permission-denied", "You can only resolve your own reports.");
+  }
+
+  if (reportData.status !== "active") {
+    throw new HttpsError("failed-precondition", `Report is already ${reportData.status}.`);
+  }
+
+  const now = new Date();
+  await reportRef.update({
+    status: "resolved",
+    resolvedAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  logger.info(`Unregistered charge report ${reportId} resolved by user ${auth.uid}`);
+  return { success: true };
+});
+
+// ── Auto-expire unregistered charge reports ────────────────────────────
+
+export const autoExpireUnregisteredReports = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "Asia/Kuala_Lumpur",
+    region: "asia-southeast1",
+  },
+  async () => {
+    const now = new Date().toISOString();
+    const db = getDb();
+
+    const expiredSnapshot = await db
+      .collection("unregisteredChargeReports")
+      .where("status", "==", "active")
+      .where("expiresAt", "<=", now)
+      .get();
+
+    let count = 0;
+    for (const doc of expiredSnapshot.docs) {
+      await doc.ref.update({
+        status: "expired",
+        updatedAt: now,
+      });
+      count++;
+    }
+
+    if (count > 0) {
+      logger.info(`Auto-expired ${count} unregistered charge reports.`);
+    }
+  }
+);
 
 // ── Get Leaderboard (Public) ─────────────────────────────────────────────
 

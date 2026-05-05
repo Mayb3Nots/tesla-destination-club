@@ -58,5 +58,18 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
+
+    // Unregistered Charge Reports — authenticated users can submit and read active reports
+    match /unregisteredChargeReports/{reportId} {
+      // Authenticated users can create reports
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.reportedByUserId;
+      
+      // Authenticated users can read reports (to see active unregistered charging)
+      allow read: if request.auth != null;
+      
+      // No client-side updates or deletes — managed by cloud functions
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

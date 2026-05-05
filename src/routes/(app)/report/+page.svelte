@@ -24,7 +24,7 @@
 			<ul class="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
 				<li>Submit a report with the car's license plate, location, and a photo as proof</li>
 				<li>Our team reviews the report to ensure quality and accuracy</li>
-				<li>Approved reports are tallied and visible on our public leaderboard</li>
+				<li>Approved reports are tallied and visible on our public hogger leaderboard</li>
 				<li>Plates appearing 2+ times are considered repeat hoggers</li>
 				<li>This helps us identify and address chronic hogging behavior</li>
 			</ul>

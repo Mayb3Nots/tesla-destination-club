@@ -4,7 +4,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from './client';
 import type { Unsubscribe } from 'firebase/messaging';
 
-const functions = getFunctions(app);
+const functions = getFunctions(app, 'asia-southeast1');
 
 /**
  * Request notification permission from the browser and obtain an FCM token.

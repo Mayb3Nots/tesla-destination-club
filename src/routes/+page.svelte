@@ -27,7 +27,7 @@
 	/>
 </svelte:head>
 
-<div class="relative min-h-screen overflow-hidden bg-surface">
+<div class="relative flex min-h-screen flex-col bg-surface">
 	<!-- Ambient background elements -->
 	<div class="pointer-events-none absolute inset-0">
 		<div
@@ -48,16 +48,16 @@
 					<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
 				</svg>
 			</div>
-			<span class="font-display text-lg font-bold tracking-tight text-text-primary">Destination Club</span>
+			<span class="font-display text-lg font-bold tracking-tight text-text-primary">Tesla Destination Club</span>
 		</div>
 		<div class="flex items-center gap-2">
 			<CoreButton variant="ghost" size="sm" href="/leaderboard">
-				Leaderboard
+				Hoggers
 			</CoreButton>
 			<CoreButton variant="ghost" size="sm" href="/chargers">
 				Chargers
 			</CoreButton>
-			<CoreButton variant="ghost" size="sm" href="/login">
+			<CoreButton variant="primary" size="sm" href="/login">
 				Sign In
 			</CoreButton>
 		</div>

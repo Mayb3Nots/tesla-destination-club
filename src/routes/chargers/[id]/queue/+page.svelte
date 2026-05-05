@@ -2,10 +2,11 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { useChargers, useBookings } from '$lib/firebase/firestore.svelte';
+	import { useChargers, useBookings, useUnregisteredChargeReports } from '$lib/firebase/firestore.svelte';
 	import { getAuthState } from '$lib/firebase/auth.svelte';
 	import CoreButton from '$lib/components/CoreButton.svelte';
 	import QueueItem from '$lib/components/QueueItem.svelte';
+	import ReportUnregisteredModal from '$lib/components/ReportUnregisteredModal.svelte';
 	import type { Charger } from '$lib/models/charger';
 	import { getBayLocation } from '$lib/models/charger';
 	import { BookingStatus } from '$lib/models/booking';
@@ -24,6 +25,8 @@
 
 	let now = $state(new Date());
 	let intervalHandle: ReturnType<typeof setInterval> | null = null;
+	let reportModalOpen = $state(false);
+	let unregisteredReportsService = $state<ReturnType<typeof useUnregisteredChargeReports> | null>(null);
 
 	onMount(async () => {
 		if (!chargerId) return;
@@ -36,6 +39,9 @@
 
 		bookingsService = useBookings(chargerId, todayStr);
 		bookingsService.subscribe();
+
+		unregisteredReportsService = useUnregisteredChargeReports(chargerId);
+		unregisteredReportsService.subscribe();
 
 		intervalHandle = setInterval(() => {
 			now = new Date();
@@ -284,11 +290,79 @@
 				{/if}
 			{/if}
 		</div>
+
+		<!-- Report Unregistered Charger -->
+		{#if auth.currentUser}
+			<div class="mt-4">
+				<button
+					onclick={() => (reportModalOpen = true)}
+					class="w-full rounded-2xl border border-accent-yellow/30 bg-accent-yellow/5 p-4 text-left transition-colors hover:bg-accent-yellow/10"
+				>
+					<div class="flex items-center gap-3">
+						<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-yellow/10">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-yellow)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+								<line x1="4" y1="22" x2="4" y2="15"/>
+							</svg>
+						</div>
+						<div>
+							<p class="text-sm font-semibold text-accent-yellow">Someone charging without a booking?</p>
+							<p class="text-xs text-text-muted">Let other users know an unregistered car is using this charger</p>
+						</div>
+					</div>
+				</button>
+			</div>
+		{/if}
+
+		<!-- Active Unregistered Reports -->
+		{#if unregisteredReportsService && unregisteredReportsService.reports.length > 0}
+			<div class="mt-4 rounded-2xl border border-border bg-surface-elevated p-5">
+				<h2 class="mb-3 text-xs font-medium uppercase tracking-wider text-text-muted">
+					Unregistered Chargers
+				</h2>
+				<p class="mb-3 text-xs text-text-muted">These cars have been reported as charging without a booking.</p>
+				<div class="space-y-2">
+					{#each unregisteredReportsService.reports as report (report.id)}
+						<div class="flex items-center justify-between rounded-lg bg-surface-overlay px-4 py-3">
+							<div class="flex items-center gap-3">
+								<div class="flex h-8 w-8 items-center justify-center rounded-full bg-accent-yellow/10 text-xs font-bold text-accent-yellow">
+									{report.plateNumber ? report.plateNumber.charAt(0) : '?'}
+								</div>
+								<div>
+									<p class="text-sm font-medium text-text-primary">
+										{report.plateNumber || 'Unknown plate'}
+									</p>
+									<p class="text-xs text-text-muted">
+										{#if report.bayName}
+											{report.bayName} · {/if}
+										Reported {new Date(report.reportedAt).toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', hour12: true })}
+										{#if report.estimatedDurationMinutes}
+											· ~{report.estimatedDurationMinutes} min
+										{/if}
+									</p>
+								</div>
+							</div>
+							<span class="inline-flex items-center gap-1 rounded-full bg-accent-yellow/10 px-2 py-0.5 text-xs font-medium text-accent-yellow">
+								<span class="h-1.5 w-1.5 rounded-full bg-accent-yellow"></span>
+								In use
+							</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	{:else}
 		<div class="flex items-center justify-center py-20">
 			<div
 				class="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-tesla-red"
 			></div>
 		</div>
+	{/if}
+
+	{#if reportModalOpen && charger}
+		<ReportUnregisteredModal
+			{charger}
+			onClose={() => (reportModalOpen = false)}
+		/>
 	{/if}
 </div>

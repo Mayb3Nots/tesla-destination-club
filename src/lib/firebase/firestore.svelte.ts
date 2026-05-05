@@ -1,5 +1,6 @@
 import { db } from './client';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from './client';
 import {
 	collection,
 	getDocs,
@@ -18,9 +19,10 @@ import type { PhysicalQueuer } from '$lib/models/charger';
 import type { Booking } from '$lib/models/booking';
 import type { Vehicle } from '$lib/models/vehicle';
 import type { HoggingReport } from '$lib/models/hoggingReport';
+import type { UnregisteredChargeReport } from '$lib/models/unregisteredChargeReport';
 import type { Hog } from '$lib/models/hog';
 
-const functions = getFunctions();
+const functions = getFunctions(app, 'asia-southeast1');
 
 export function useChargers() {
 	let chargers = $state<Charger[]>([]);
@@ -451,5 +453,88 @@ export function usePendingReports() {
 			return error;
 		},
 		subscribe
+	};
+}
+
+// ── Unregistered Charge Report Functions ──────────────────────────────────
+
+export async function submitUnregisteredChargeReport(data: {
+	chargerId: string;
+	chargerName: string;
+	plateNumber?: string;
+	bayName?: string;
+	estimatedDurationMinutes?: number;
+	photoStoragePath?: string;
+}) {
+	const submitFn = httpsCallable(functions, 'submitUnregisteredChargeReport');
+	const result = await submitFn(data);
+	return result.data as { success: boolean; reportId: string };
+}
+
+export async function resolveUnregisteredChargeReport(reportId: string) {
+	const resolveFn = httpsCallable(functions, 'resolveUnregisteredChargeReport');
+	const result = await resolveFn({ reportId });
+	return result.data as { success: boolean };
+}
+
+export function useUnregisteredChargeReports(chargerId: string) {
+	let reports = $state<UnregisteredChargeReport[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	let unsubscribe: (() => void) | null = null;
+
+	function subscribe() {
+		loading = true;
+		error = null;
+
+		const q = query(
+			collection(db, 'unregisteredChargeReports'),
+			where('chargerId', '==', chargerId),
+			where('status', '==', 'active'),
+			orderBy('createdAt', 'desc')
+		);
+
+		try {
+			unsubscribe = onSnapshot(
+				q,
+				(snapshot) => {
+					reports = snapshot.docs.map(
+						(d) => ({ id: d.id, ...d.data() } as UnregisteredChargeReport)
+					);
+					loading = false;
+				},
+				(err) => {
+					console.error('Failed to load unregistered reports:', err);
+					error = 'Failed to load reports';
+					loading = false;
+				}
+			);
+		} catch (err) {
+			console.error('Failed to subscribe to unregistered reports:', err);
+			error = 'Failed to subscribe to reports';
+			loading = false;
+		}
+	}
+
+	function stop() {
+		if (unsubscribe) {
+			unsubscribe();
+			unsubscribe = null;
+		}
+	}
+
+	return {
+		get reports() {
+			return reports;
+		},
+		get loading() {
+			return loading;
+		},
+		get error() {
+			return error;
+		},
+		subscribe,
+		stop
 	};
 }

@@ -4,6 +4,7 @@
 	import { isAdminEmail } from '$lib/admin';
 	import { onMount } from 'svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import CoreButton from '$lib/components/CoreButton.svelte';
 	import NotificationPermissionBanner from '$lib/components/NotificationPermissionBanner.svelte';
 	import { onForegroundMessage, getNotificationStatus } from '$lib/firebase/messaging';
 
@@ -56,58 +57,36 @@
 		<div class="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-tesla-red"></div>
 	</div>
 {:else if auth.currentUser}
-	<div class="min-h-screen bg-surface">
-		<nav
-			class="border-b border-border bg-surface-elevated/80 backdrop-blur-md sticky top-0 z-50"
-		>
-			<div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8">
-				<a href="/chargers" class="flex items-center gap-3">
-					<div
-						class="flex h-8 w-8 items-center justify-center rounded-lg bg-tesla-red"
-					>
-						<svg
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="white"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-						</svg>
-					</div>
-					<span class="font-display text-base font-bold tracking-tight text-text-primary"
-						>Destination Club</span
-					>
-				</a>
-				<div class="flex items-center gap-2">
-					<a
-						href="/chargers"
-						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						Chargers
-					</a>
-					<a
-						href="/leaderboard"
-						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						Leaderboard
-					</a>
-					<a
-						href="/report"
-						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						Report
-					</a>
-					<a
-						href="/faq"
-						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						FAQ
-					</a>
-					<ThemeToggle />
+	<div class="relative flex min-h-screen flex-col bg-surface">
+		<!-- Ambient background elements (matching landing page) -->
+		<div class="pointer-events-none absolute inset-0">
+			<div
+				class="absolute -top-1/2 left-1/2 h-[800px] w-[800px] -translate-x-1/2 rounded-full opacity-[0.07]"
+				style="background: radial-gradient(circle, var(--color-tesla-red), transparent 70%); animation: pulse-glow 6s ease-in-out infinite;"
+			></div>
+			<div
+				class="absolute -right-32 top-1/4 h-[500px] w-[500px] rounded-full opacity-[0.04]"
+				style="background: radial-gradient(circle, var(--color-accent-blue), transparent 70%);"
+			></div>
+		</div>
+
+		<nav class="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-8">
+			<a href="/chargers" class="flex items-center gap-3">
+				<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-tesla-red">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+					</svg>
+				</div>
+				<span class="font-display text-lg font-bold tracking-tight text-text-primary">Tesla Destination Club</span>
+			</a>
+			<div class="flex items-center gap-2">
+				<CoreButton variant="ghost" size="sm" href="/leaderboard">
+					Hoggers
+				</CoreButton>
+				<CoreButton variant="ghost" size="sm" href="/chargers">
+					Chargers
+				</CoreButton>
+				<ThemeToggle />
 					<div class="relative ml-2">
 						<button
 							onclick={() => (profileMenuOpen = !profileMenuOpen)}
@@ -218,12 +197,33 @@
 							</div>
 						{/if}
 					</div>
-				</div>
 			</div>
 		</nav>
-		<main>
+		<main class="relative z-10 flex-1">
 			{@render children()}
 		</main>
+
+		<footer class="relative z-10 border-t border-border bg-surface-elevated">
+			<div
+				class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 sm:flex-row lg:px-8"
+			>
+				<p class="text-xs text-text-muted">© {new Date().getFullYear()} Tesla Destination Club</p>
+				<div class="flex items-center gap-5">
+					<a
+						href="/etiquette"
+						class="text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+					>
+						Rules & Etiquette
+					</a>
+					<a
+						href="/faq"
+						class="text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+					>
+						FAQ
+					</a>
+				</div>
+			</div>
+		</footer>
 
 		<!-- Notification permission banner -->
 		<div class="fixed bottom-6 left-6 right-6 z-50 lg:left-auto lg:right-8 lg:w-[480px]">

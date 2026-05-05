@@ -79,7 +79,7 @@
 						<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
 					</svg>
 				</div>
-				<span class="font-display text-xl font-bold tracking-tight text-text-primary">Destination Club</span>
+				<span class="font-display text-xl font-bold tracking-tight text-text-primary">Tesla Destination Club</span>
 			</a>
 			<h1 class="font-display text-2xl font-bold text-text-primary">
 				{isResetMode ? 'Reset your password' : isSignUp ? 'Create your account' : 'Welcome back'}

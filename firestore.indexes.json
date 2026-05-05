@@ -91,6 +91,56 @@
           "mode": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "unregisteredChargeReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chargerId",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "mode": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "unregisteredChargeReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chargerId",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "reportedByUserId",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "mode": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "unregisteredChargeReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiresAt",
+          "mode": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
