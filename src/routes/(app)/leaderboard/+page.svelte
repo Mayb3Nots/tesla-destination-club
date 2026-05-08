@@ -138,7 +138,20 @@
 			<li>• Only plates with <strong>2+ approved reports</strong> appear on this hogger leaderboard</li>
 			<li>• First-time offenders are given the benefit of the doubt</li>
 			<li>• Reports are reviewed by our moderation team before counting</li>
-			<li>• Have you spotted a hogging incident? <a href="/report" class="font-semibold text-accent-blue hover:underline">Submit a report</a></li>
 		</ul>
+	</div>
+
+	<!-- Report CTA -->
+	<div class="mt-6">
+		<a
+			href="/report"
+			class="flex items-center justify-center gap-2 rounded-xl bg-tesla-red px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-tesla-red/90 active:scale-[0.98]"
+		>
+			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+				<line x1="4" y1="22" x2="4" y2="15"/>
+			</svg>
+			Report a Hogger
+		</a>
 	</div>
 </div>

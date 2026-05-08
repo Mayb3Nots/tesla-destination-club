@@ -281,12 +281,6 @@ export async function checkOutBooking(chargerId: string, bookingId: string) {
 	return result.data as { success: boolean };
 }
 
-export async function seedChargers() {
-	const seedFn = httpsCallable(functions, 'seedChargers');
-	const result = await seedFn();
-	return result.data as { success: boolean; count?: number; message?: string };
-}
-
 export async function yieldBooking(chargerId: string, bookingId: string) {
 	const yieldFn = httpsCallable(functions, 'yieldBooking');
 	const result = await yieldFn({ chargerId, bookingId });

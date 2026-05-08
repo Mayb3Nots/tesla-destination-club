@@ -129,7 +129,6 @@ Uses Tailwind v4 with the `@tailwindcss/vite` plugin. CSS is configured entirely
 All functions use Firebase Cloud Functions v2 (`onCall` pattern). The functions module uses double quotes (Google ESLint config) and compiles to `functions/lib/`.
 
 **Exported functions:**
-- `seedChargers` — Seeds initial charger data (idempotent)
 - `createBooking` — Creates a booking with validation (overlap check, user limit of 1 active booking, max 120 min, max 7 days ahead)
 - `cancelBooking` — Cancels a pending booking (owner only)
 

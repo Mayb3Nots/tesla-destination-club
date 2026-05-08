@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { getAuthState } from '$lib/firebase/auth.svelte';
 	import { isAdminEmail } from '$lib/admin';
 	import { onMount } from 'svelte';
@@ -15,10 +14,6 @@
 	let foregroundNotification = $state<{ title: string; body: string } | null>(null);
 
 	onMount(() => {
-		if (!auth.loading && !auth.currentUser) {
-			goto('/login');
-		}
-
 		// Register service worker for background push notifications
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
@@ -44,20 +39,9 @@
 			unsubscribe();
 		};
 	});
-
-	$effect(() => {
-		if (!auth.loading && !auth.currentUser) {
-			goto('/login');
-		}
-	});
 </script>
 
-{#if auth.loading}
-	<div class="flex min-h-screen items-center justify-center bg-surface">
-		<div class="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-tesla-red"></div>
-	</div>
-{:else if auth.currentUser}
-	<div class="relative flex min-h-screen flex-col bg-surface">
+<div class="relative flex min-h-screen flex-col bg-surface">
 		<!-- Ambient background elements (matching landing page) -->
 		<div class="pointer-events-none absolute inset-0">
 			<div
@@ -70,23 +54,35 @@
 			></div>
 		</div>
 
-		<nav class="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-8">
-			<a href="/chargers" class="flex items-center gap-3">
-				<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-tesla-red">
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-					</svg>
-				</div>
-				<span class="font-display text-lg font-bold tracking-tight text-text-primary">Tesla Destination Club</span>
-			</a>
-			<div class="flex items-center gap-2">
-				<CoreButton variant="ghost" size="sm" href="/leaderboard">
-					Hoggers
-				</CoreButton>
-				<CoreButton variant="ghost" size="sm" href="/chargers">
-					Chargers
-				</CoreButton>
-				<ThemeToggle />
+		<nav
+			class="sticky top-0 z-50 border-b border-border bg-surface-elevated/80 backdrop-blur-md"
+		>
+			<div class="flex items-center justify-between px-6 py-4 lg:px-8">
+				<a href="/" class="flex items-center gap-3">
+					<div
+						class="flex h-9 w-9 items-center justify-center rounded-lg bg-tesla-red"
+					>
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+						</svg>
+					</div>
+					<span class="font-display text-lg font-bold tracking-tight text-text-primary">Tesla Destination Club</span>
+				</a>
+				<div class="flex items-center gap-2">
+					<a
+						href="/chargers"
+						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+					>
+						Chargers
+					</a>
+					<a
+						href="/leaderboard"
+						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+					>
+						Hoggers
+					</a>
+					<ThemeToggle />
+				{#if auth.currentUser}
 					<div class="relative ml-2">
 						<button
 							onclick={() => (profileMenuOpen = !profileMenuOpen)}
@@ -197,6 +193,12 @@
 							</div>
 						{/if}
 					</div>
+				{:else}
+					<CoreButton variant="primary" size="sm" href="/login">
+						Sign In
+					</CoreButton>
+				{/if}
+				</div>
 			</div>
 		</nav>
 		<main class="relative z-10 flex-1">
@@ -208,16 +210,17 @@
 				class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 sm:flex-row lg:px-8"
 			>
 				<p class="text-xs text-text-muted">© {new Date().getFullYear()} Tesla Destination Club</p>
-				<div class="flex items-center gap-5">
+				<div class="flex items-center gap-4">
 					<a
 						href="/etiquette"
-						class="text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+						class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
 					>
 						Rules & Etiquette
 					</a>
+					<span class="text-text-muted">·</span>
 					<a
 						href="/faq"
-						class="text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+						class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
 					>
 						FAQ
 					</a>
@@ -270,4 +273,3 @@
 			</div>
 		{/if}
 	</div>
-{/if}

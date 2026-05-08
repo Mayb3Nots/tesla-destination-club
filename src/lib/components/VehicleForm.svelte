@@ -1,12 +1,13 @@
 <script lang="ts">
 	import type { Vehicle } from '$lib/models/vehicle';
-	import { getModelsForYear, getColorsForModel, getYearOptions } from '$lib/tesla-data';
+	import { getModelsForYear, getColorsForModel, getYearOptions, getTrimsForModel } from '$lib/tesla-data';
 
 	type Props = {
 		vehicle?: Vehicle | null;
 		onSubmit: (data: {
 			plateNumber: string;
 			model: string;
+			trim: string;
 			color: string;
 			year: number;
 		}) => Promise<void>;
@@ -17,6 +18,7 @@
 
 	let plateNumber = $state('');
 	let model = $state('');
+	let trim = $state('');
 	let color = $state('');
 	let year = $state(new Date().getFullYear());
 
@@ -26,6 +28,7 @@
 		if (v) {
 			plateNumber = v.plateNumber;
 			model = v.model;
+			trim = v.trim ?? '';
 			color = v.color;
 			year = v.year;
 		}
@@ -43,7 +46,18 @@
 		const models = availableModels;
 		if (model && !models.includes(model)) {
 			model = '';
+			trim = '';
 			color = '';
+		}
+	});
+
+	// Smart cascading: when model changes, reset trim and color if no longer valid
+	let availableTrims = $derived(getTrimsForModel(model));
+
+	$effect(() => {
+		const trims = availableTrims;
+		if (trim && !trims.some((t) => t.name === trim)) {
+			trim = '';
 		}
 	});
 
@@ -60,6 +74,7 @@
 	let canSubmit = $derived(
 		plateNumber.trim().length > 0 &&
 			model.trim().length > 0 &&
+			trim.trim().length > 0 &&
 			color.trim().length > 0 &&
 			year > 0
 	);
@@ -75,6 +90,7 @@
 			await onSubmit({
 				plateNumber: plateNumber.trim().toUpperCase(),
 				model: model.trim(),
+				trim: trim.trim(),
 				color: color.trim(),
 				year
 			});
@@ -142,6 +158,27 @@
 				{/each}
 			</select>
 		</div>
+	</div>
+
+	<div>
+		<label for="trim" class="mb-1.5 block text-sm font-medium text-text-secondary"
+			>Trim / Variant</label
+		>
+		<select
+			id="trim"
+			bind:value={trim}
+			required
+			class="w-full rounded-lg border border-border bg-surface-elevated px-4 py-3 text-base text-text-primary focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+			disabled={availableTrims.length === 0}
+		>
+			<option value="" disabled>Select trim</option>
+			{#each availableTrims as t}
+				<option value={t.name}>{t.name} ({t.batteryCapacityKWh} kWh)</option>
+			{/each}
+		</select>
+		<p class="mt-1.5 text-xs text-text-muted">
+			Used to estimate your charging time based on battery capacity.
+		</p>
 	</div>
 
 	<div>

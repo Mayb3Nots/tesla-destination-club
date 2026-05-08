@@ -33,6 +33,7 @@
 	async function handleSubmit(data: {
 		plateNumber: string;
 		model: string;
+		trim: string;
 		color: string;
 		year: number;
 	}) {
@@ -174,7 +175,8 @@
 								Tesla {vehicle.model}
 								</h3>
 								<p class="mt-0.5 text-sm text-text-secondary">
-									<span class="font-medium text-text-primary">{vehicle.plateNumber}</span>
+									{vehicle.trim}
+									· <span class="font-medium text-text-primary">{vehicle.plateNumber}</span>
 									· {vehicle.color} · {vehicle.year}
 								</p>
 							</div>

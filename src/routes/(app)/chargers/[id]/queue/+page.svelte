@@ -28,6 +28,12 @@
 	let reportModalOpen = $state(false);
 	let unregisteredReportsService = $state<ReturnType<typeof useUnregisteredChargeReports> | null>(null);
 
+	$effect(() => {
+		if (bookingsService) {
+			bookings = bookingsService.bookings;
+		}
+	});
+
 	onMount(async () => {
 		if (!chargerId) return;
 		if (!auth.currentUser && !auth.loading) {

@@ -148,3 +148,78 @@ export function getYearOptions(): number[] {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: currentYear - OLDEST_TESLA_YEAR + 1 }, (_, i) => currentYear - i);
 }
+
+// ── Tesla Trims (with battery capacity) ──────────────────────────────────────
+
+export interface TeslaTrim {
+    name: string;
+    batteryCapacityKWh: number;
+}
+
+/**
+ * Trim levels per model, keyed by model name.
+ * Battery capacity in kWh — used for future charging time predictions.
+ */
+const TRIM_MAP: Record<string, TeslaTrim[]> = {
+    'Model S': [
+        { name: 'Standard Range', batteryCapacityKWh: 60 },
+        { name: 'Long Range', batteryCapacityKWh: 100 },
+        { name: 'Plaid', batteryCapacityKWh: 100 },
+    ],
+    'Model S Plaid': [
+        { name: 'Plaid', batteryCapacityKWh: 100 },
+    ],
+    'Model 3': [
+        { name: 'Rear-Wheel Drive', batteryCapacityKWh: 60 },
+        { name: 'Long Range (AWD)', batteryCapacityKWh: 82 },
+        { name: 'Performance (AWD)', batteryCapacityKWh: 82 },
+    ],
+    'Model 3 Performance': [
+        { name: 'Performance (AWD)', batteryCapacityKWh: 82 },
+    ],
+    'Model X': [
+        { name: 'Standard Range', batteryCapacityKWh: 75 },
+        { name: 'Long Range', batteryCapacityKWh: 100 },
+        { name: 'Plaid', batteryCapacityKWh: 100 },
+    ],
+    'Model X Plaid': [
+        { name: 'Plaid', batteryCapacityKWh: 100 },
+    ],
+    'Model Y': [
+        { name: 'Rear-Wheel Drive', batteryCapacityKWh: 60 },
+        { name: 'Long Range (AWD)', batteryCapacityKWh: 82 },
+        { name: 'Performance (AWD)', batteryCapacityKWh: 82 },
+    ],
+    'Model Y Performance': [
+        { name: 'Performance (AWD)', batteryCapacityKWh: 82 },
+    ],
+    'Cybertruck': [
+        { name: 'Rear-Wheel Drive', batteryCapacityKWh: 60 },
+        { name: 'All-Wheel Drive', batteryCapacityKWh: 100 },
+        { name: 'Cyberbeast', batteryCapacityKWh: 120 },
+    ],
+    'Roadster': [
+        { name: 'Standard', batteryCapacityKWh: 53 },
+        { name: 'Sport', batteryCapacityKWh: 53 },
+    ],
+    'Roadster (2nd Gen)': [
+        { name: 'Base', batteryCapacityKWh: 200 },
+        { name: 'Founders Series', batteryCapacityKWh: 200 },
+    ],
+    'Semi': [
+        { name: 'Standard (300mi)', batteryCapacityKWh: 300 },
+        { name: 'Long Range (500mi)', batteryCapacityKWh: 500 },
+    ],
+};
+
+/** Returns the available trims for a given Tesla model. */
+export function getTrimsForModel(model: string): TeslaTrim[] {
+    return TRIM_MAP[model] ?? [];
+}
+
+/** Returns the battery capacity in kWh for a given model + trim combination. */
+export function getBatteryCapacity(model: string, trim: string): number | null {
+    const trims = TRIM_MAP[model];
+    if (!trims) return null;
+    return trims.find((t) => t.name === trim)?.batteryCapacityKWh ?? null;
+}

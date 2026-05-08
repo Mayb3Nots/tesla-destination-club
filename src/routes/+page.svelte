@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CoreButton from '$lib/components/CoreButton.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { onMount } from 'svelte';
 
 	const words = ['guessing', 'camping', 'wasting time', 'stressing', 'gambling', 'hovering', 'waiting around', 'rolling the dice'];
@@ -41,7 +42,8 @@
 	</div>
 
 	<!-- Navigation -->
-	<nav class="animate-fade-in relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-8">
+	<nav class="sticky top-0 z-50 border-b border-border bg-surface-elevated/80 backdrop-blur-md">
+		<div class="flex items-center justify-between px-6 py-4 lg:px-8">
 		<div class="flex items-center gap-3">
 			<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-tesla-red">
 				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -51,15 +53,23 @@
 			<span class="font-display text-lg font-bold tracking-tight text-text-primary">Tesla Destination Club</span>
 		</div>
 		<div class="flex items-center gap-2">
-			<CoreButton variant="ghost" size="sm" href="/leaderboard">
-				Hoggers
-			</CoreButton>
-			<CoreButton variant="ghost" size="sm" href="/chargers">
+			<a
+				href="/chargers"
+				class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+			>
 				Chargers
-			</CoreButton>
+			</a>
+			<a
+				href="/leaderboard"
+				class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+			>
+				Hoggers
+			</a>
+			<ThemeToggle />
 			<CoreButton variant="primary" size="sm" href="/login">
 				Sign In
 			</CoreButton>
+		</div>
 		</div>
 	</nav>
 
@@ -335,6 +345,21 @@
 						</svg>
 					</div>
 					<span class="text-sm font-medium text-text-muted">Tesla Destination Club</span>
+				</div>
+				<div class="flex items-center gap-4">
+					<a
+						href="/etiquette"
+						class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
+					>
+						Rules & Etiquette
+					</a>
+					<span class="text-text-muted">·</span>
+					<a
+						href="/faq"
+						class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
+					>
+						FAQ
+					</a>
 				</div>
 				<p class="text-xs text-text-muted">Built with care for the Malaysian Tesla community</p>
 			</div>

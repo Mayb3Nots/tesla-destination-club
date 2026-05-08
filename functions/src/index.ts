@@ -6,8 +6,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { CloudTasksClient } from "@google-cloud/tasks";
 import * as logger from "firebase-functions/logger";
-import { SEED_CHARGERS } from "./seed.js";
-
 initializeApp();
 setGlobalOptions({ maxInstances: 10, region: "asia-southeast1" });
 
@@ -129,24 +127,6 @@ export const processExpiredBooking = onRequest(
     res.status(200).send({ success: true, status: updates.status });
   }
 );
-
-export const seedChargers = onCall(async () => {
-  const snapshot = await getDb().collection("chargers").limit(1).get();
-
-  if (!snapshot.empty) {
-    logger.info("Chargers already seeded, skipping.");
-    return { success: true, message: "Chargers already exist." };
-  }
-
-  const batch = getDb().batch();
-  for (const charger of SEED_CHARGERS) {
-    const ref = getDb().collection("chargers").doc();
-    batch.set(ref, charger);
-  }
-  await batch.commit();
-  logger.info(`Seeded ${SEED_CHARGERS.length} chargers.`);
-  return { success: true, count: SEED_CHARGERS.length };
-});
 
 export const createBooking = onCall(async (request) => {
   const { auth } = request;
