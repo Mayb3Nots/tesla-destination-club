@@ -1,10 +1,8 @@
 import { getMessagingInstance, vapidKey } from './client';
 import { getToken, onMessage } from 'firebase/messaging';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from './client';
+import { app, db } from './client';
+import { doc, setDoc } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/messaging';
-
-const functions = getFunctions(app, 'asia-southeast1');
 
 /**
  * Request notification permission from the browser and obtain an FCM token.
@@ -27,11 +25,10 @@ export async function requestNotificationPermission(): Promise<string | null> {
 }
 
 /**
- * Store the FCM token in Firestore via cloud function.
+ * Store the FCM token directly in Firestore.
  */
 export async function storeFcmToken(uid: string, token: string): Promise<void> {
-    const storeFn = httpsCallable(functions, 'storeFcmToken');
-    await storeFn({ token });
+    await setDoc(doc(db, 'users', uid), { fcmToken: token, updatedAt: new Date().toISOString() }, { merge: true });
 }
 
 /**
@@ -39,8 +36,7 @@ export async function storeFcmToken(uid: string, token: string): Promise<void> {
  */
 export async function removeFcmToken(uid: string): Promise<void> {
     try {
-        const storeFn = httpsCallable(functions, 'storeFcmToken');
-        await storeFn({ token: null });
+        await setDoc(doc(db, 'users', uid), { fcmToken: null, updatedAt: new Date().toISOString() }, { merge: true });
     } catch (err) {
         console.error('Failed to remove FCM token:', err);
     }

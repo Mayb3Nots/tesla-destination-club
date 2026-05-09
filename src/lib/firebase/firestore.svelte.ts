@@ -11,6 +11,8 @@ import {
 	orderBy,
 	setDoc,
 	deleteDoc,
+	updateDoc,
+	limit,
 	type QueryConstraint
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -393,9 +395,19 @@ export async function rejectHoggingReport(reportId: string, rejectionReason: str
 }
 
 export async function getLeaderboard() {
-	const leaderboardFn = httpsCallable(functions, 'getLeaderboard');
-	const result = await leaderboardFn();
-	return result.data as { success: boolean; leaderboard: (Hog & { rank: number })[] };
+	const q = query(
+		collection(db, 'hoggers'),
+		where('approvedReportCount', '>=', 2),
+		orderBy('approvedReportCount', 'desc'),
+		orderBy('plateNumber', 'asc'),
+		limit(10)
+	);
+	const snapshot = await getDocs(q);
+	const leaderboard = snapshot.docs.map((d, index) => ({
+		rank: index + 1,
+		...d.data()
+	})) as (Hog & { rank: number })[];
+	return { success: true as const, leaderboard };
 }
 
 export function usePendingReports() {
@@ -460,15 +472,43 @@ export async function submitUnregisteredChargeReport(data: {
 	estimatedDurationMinutes?: number;
 	photoStoragePath?: string;
 }) {
-	const submitFn = httpsCallable(functions, 'submitUnregisteredChargeReport');
-	const result = await submitFn(data);
-	return result.data as { success: boolean; reportId: string };
+	const auth = getAuth();
+	const user = auth.currentUser;
+	if (!user) throw new Error('Not authenticated');
+
+	const now = new Date();
+	const expiresAt = new Date(now.getTime() + 120 * 60 * 1000); // 2 hours
+	const reportRef = doc(collection(db, 'unregisteredChargeReports'));
+
+	const report = {
+		chargerId: data.chargerId,
+		chargerName: data.chargerName,
+		plateNumber: data.plateNumber || '',
+		bayName: data.bayName || '',
+		estimatedDurationMinutes: data.estimatedDurationMinutes || null,
+		photoStoragePath: data.photoStoragePath || '',
+		reportedByUserId: user.uid,
+		reportedByEmail: user.email || '',
+		reportedByDisplayName: user.displayName || user.email?.split('@')[0] || '',
+		reportedAt: now.toISOString(),
+		status: 'active' as const,
+		expiresAt: expiresAt.toISOString(),
+		createdAt: now.toISOString(),
+		updatedAt: now.toISOString()
+	};
+
+	await setDoc(reportRef, report);
+	return { success: true as const, reportId: reportRef.id };
 }
 
 export async function resolveUnregisteredChargeReport(reportId: string) {
-	const resolveFn = httpsCallable(functions, 'resolveUnregisteredChargeReport');
-	const result = await resolveFn({ reportId });
-	return result.data as { success: boolean };
+	const reportRef = doc(db, 'unregisteredChargeReports', reportId);
+	await updateDoc(reportRef, {
+		status: 'resolved',
+		resolvedAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString()
+	});
+	return { success: true as const };
 }
 
 export function useUnregisteredChargeReports(chargerId: string) {

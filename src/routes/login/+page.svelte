@@ -223,25 +223,4 @@
 			Be kind, be fair, charge responsibly.
 		</p>
 	</div>
-
-</div>
-
-	<!-- Footer -->
-	<footer class="relative z-10 mt-8 w-full max-w-md border-t border-border-subtle py-6">
-		<div class="flex items-center justify-center gap-4">
-			<a
-				href="/etiquette"
-				class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
-			>
-					Rules & Etiquette
-			</a>
-			<span class="text-text-muted">·</span>
-			<a
-				href="/faq"
-				class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
-			>
-				FAQ
-			</a>
-		</div>
-	</footer>
 </div>

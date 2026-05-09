@@ -57,6 +57,7 @@
 	<!-- Chevron in top-right corner -->
 	<svg
 		class="absolute top-4 right-4 h-4 w-4 text-text-secondary group-hover:text-tesla-red transition-colors"
+		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
 		stroke-width="1.5"

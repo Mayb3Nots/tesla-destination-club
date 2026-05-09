@@ -76,7 +76,7 @@
 						Chargers
 					</a>
 					<a
-						href="/leaderboard"
+						href="/hoggers"
 						class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
 					>
 						Hoggers
@@ -212,10 +212,17 @@
 				<p class="text-xs text-text-muted">© {new Date().getFullYear()} Tesla Destination Club</p>
 				<div class="flex items-center gap-4">
 					<a
+						href="/report"
+						class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
+					>
+						Report a Hogger
+					</a>
+					<span class="text-text-muted">·</span>
+					<a
 						href="/etiquette"
 						class="text-xs font-medium text-text-secondary underline decoration-border underline-offset-2 transition-colors hover:text-text-primary hover:decoration-text-primary"
 					>
-						Rules & Etiquette
+						Rules &amp; Etiquette
 					</a>
 					<span class="text-text-muted">·</span>
 					<a

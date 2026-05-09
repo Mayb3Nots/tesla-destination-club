@@ -49,13 +49,25 @@
 
 <div class="mx-auto max-w-2xl px-6 py-10 lg:px-8">
 	<!-- Header -->
-	<div class="mb-8">
-		<h1 class="font-display text-3xl font-bold tracking-tight text-text-primary">
-			🏆 Hogger Leaderboard
-		</h1>
-		<p class="mt-2 text-base text-text-secondary">
-			Top 10 vehicles with the most hogging reports. Plates appear here after 2+ approved reports.
-		</p>
+	<div class="mb-8 flex items-start justify-between gap-4">
+		<div>
+			<h1 class="font-display text-3xl font-bold tracking-tight text-text-primary">
+				🏆 Hogger Leaderboard
+			</h1>
+			<p class="mt-2 text-base text-text-secondary">
+				Top 10 vehicles with the most hogging reports. Plates appear here after 2+ approved reports.
+			</p>
+		</div>
+		<a
+			href="/report"
+			class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-tesla-red px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-tesla-red/90"
+		>
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+				<line x1="4" y1="22" x2="4" y2="15"/>
+			</svg>
+			Report Hogger
+		</a>
 	</div>
 
 		<!-- Content -->
@@ -141,17 +153,5 @@
 		</ul>
 	</div>
 
-	<!-- Report CTA -->
-	<div class="mt-6">
-		<a
-			href="/report"
-			class="flex items-center justify-center gap-2 rounded-xl bg-tesla-red px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-tesla-red/90 active:scale-[0.98]"
-		>
-			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-				<line x1="4" y1="22" x2="4" y2="15"/>
-			</svg>
-			Report a Hogger
-		</a>
-	</div>
+
 </div>
